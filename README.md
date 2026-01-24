@@ -33,3 +33,18 @@ Each rule has its own markdown file in `skills/react-best-practices/rules/` with
 - Additional notes and references
 
 Note that some of these skills rely on the usage of a minimum react 19.2.x version and react compiler enabled.
+
+### `workflow-local-dev`
+
+**Description:** Assist with local deployment of workflow features in the DAP workspace. Provides access to Kubernetes (Kind), Tilt service management, database queries, and troubleshooting. Use when developing workflow services, debugging pods, checking logs, running tests, or troubleshooting the local workflow environment.
+
+It provides:
+
+- **Quick Reference Commands** — Common kubectl, Tilt, and test commands for daily development
+- **Utility Scripts** — Ready-to-use scripts for checking pod status, restarting services, tailing logs, and querying the database
+- **Development Workflow** — Step-by-step guidance for the code-build-test cycle
+- **Testing Protocol** — Instructions for running unit tests (via Nx) and E2E tests (via pytest)
+- **Troubleshooting Guides** — Commands for debugging pods, Temporal workflows, database state, and Pulsar messages
+- **Service Reference** — Complete list of service URLs, infrastructure ports, and database access details in `workflow-local-dev/reference.md`
+
+**Covered Services:** `workflow-catalog`, `workflow-executions-api`, `workflow-engine-worker`, `workflow-consumer`, `workflow-validator`, `workflows-worker`, `standalone-tasks-worker`

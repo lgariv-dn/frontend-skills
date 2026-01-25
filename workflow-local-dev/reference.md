@@ -79,21 +79,25 @@ Password: postgres
 Schema: workflow_engine
 ```
 
-### Connect via psql
+### Connect via psql (through pod)
 ```bash
-psql -h localhost -U postgres -d temporal
+# Use the db-query script
+bash .cursor/skills/workflow-local-dev/scripts/db-query.sh "<SQL query>"
+
+# Or connect directly via kubectl
+kubectl exec -it $(kubectl get pods --context kind-kind -o name | grep '^pod/postgres-' | head -1 | sed 's|pod/||') --context kind-kind -- psql -U postgres -d temporal
 ```
 
 ### Useful Queries
 ```sql
--- Recent workflow instances
-SELECT * FROM workflow_engine.workflow_instance ORDER BY created_at DESC LIMIT 10;
+-- Recent workflows
+SELECT * FROM workflow_engine.workflows ORDER BY created_at DESC LIMIT 10;
 
--- Task catalog
-SELECT * FROM workflow_engine.task_catalog;
+-- Tasks
+SELECT * FROM workflow_engine.tasks;
 
 -- Workflow versions
-SELECT * FROM workflow_engine.workflow_version WHERE workflow_id = '<uuid>';
+SELECT * FROM workflow_engine.workflow_versions WHERE workflow_id = '<uuid>';
 ```
 
 ---

@@ -16,7 +16,7 @@ if [ -z "$SERVICE_NAME" ]; then
     echo "  consumer         - workflow-consumer"
     echo "  validator        - workflow-validator"
     echo "  workflows-worker - workflows-worker"
-    echo "  tasks-worker     - standalone-tasks-worker"
+    echo "  tasks-worker     - workflow-standalone-tasks-worker"
     echo ""
     echo "Examples:"
     echo "  $0 catalog           # Tail last 100 lines"
@@ -45,7 +45,7 @@ case "$SERVICE_NAME" in
         FULL_NAME="workflows-worker"
         ;;
     tasks-worker)
-        FULL_NAME="standalone-tasks-worker"
+        FULL_NAME="workflow-standalone-tasks-worker"
         ;;
     *)
         # Assume it's already a full name
@@ -59,7 +59,7 @@ echo "---"
 
 # Try tilt logs first, fallback to kubectl
 if command -v tilt &> /dev/null; then
-    tilt logs "$FULL_NAME" --since="${LINES}s" 2>/dev/null || \
+    tilt logs -f "$FULL_NAME" 2>/dev/null || \
     kubectl logs -f -l app="$FULL_NAME" --context kind-kind --tail="$LINES"
 else
     kubectl logs -f -l app="$FULL_NAME" --context kind-kind --tail="$LINES"

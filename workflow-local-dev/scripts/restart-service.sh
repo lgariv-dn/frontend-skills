@@ -15,7 +15,7 @@ if [ -z "$SERVICE_NAME" ]; then
     echo "  consumer         - workflow-consumer"
     echo "  validator        - workflow-validator"
     echo "  workflows-worker - workflows-worker"
-    echo "  tasks-worker     - standalone-tasks-worker"
+    echo "  tasks-worker     - workflow-standalone-tasks-worker"
     exit 1
 fi
 
@@ -40,7 +40,7 @@ case "$SERVICE_NAME" in
         FULL_NAME="workflows-worker"
         ;;
     tasks-worker)
-        FULL_NAME="standalone-tasks-worker"
+        FULL_NAME="workflow-standalone-tasks-worker"
         ;;
     *)
         # Assume it's already a full name

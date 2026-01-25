@@ -46,7 +46,7 @@ bash .cursor/skills/workflow-local-dev/scripts/tail-logs.sh <service-name>
 ### Query Database
 ```bash
 bash .cursor/skills/workflow-local-dev/scripts/db-query.sh "<SQL query>"
-# Example: bash .cursor/skills/workflow-local-dev/scripts/db-query.sh "SELECT * FROM workflow_engine.workflow_instance ORDER BY created_at DESC LIMIT 5"
+# Example: bash .cursor/skills/workflow-local-dev/scripts/db-query.sh "SELECT * FROM workflow_engine.workflows ORDER BY created_at DESC LIMIT 5"
 ```
 
 ---
@@ -76,7 +76,8 @@ Open http://localhost:8081 (Temporal UI) and search by workflow ID.
 
 ### Database State
 ```bash
-psql -h localhost -U postgres -d temporal -c "SELECT * FROM workflow_engine.workflow_instance ORDER BY created_at DESC LIMIT 5;"
+# Use the db-query script (runs psql inside the postgres pod)
+bash .cursor/skills/workflow-local-dev/scripts/db-query.sh "SELECT * FROM workflow_engine.workflows ORDER BY created_at DESC LIMIT 5"
 ```
 
 ### Pulsar Messages

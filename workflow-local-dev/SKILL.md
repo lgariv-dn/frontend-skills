@@ -1,6 +1,6 @@
 ---
 name: workflow-local-dev
-description: Assist with local deployment of workflow features in the DAP workspace. Provides access to Kubernetes (Kind), Tilt service management, database queries, and troubleshooting. Use when developing workflow services, debugging pods, checking logs, running tests, or troubleshooting the local workflow environment.
+description: Support local workflow platform development in the DAP workspace across frontend, backend, and infra teams. Provides access to Kubernetes (Kind), Tilt service management, database queries, and troubleshooting. Use when building backend/API features, adjusting infra configurations, checking logs, running tests, or debugging issues against locally deployed workflow engine components.
 ---
 
 # Workflow Local Development
@@ -12,13 +12,12 @@ description: Assist with local deployment of workflow features in the DAP worksp
 | Task | Command |
 |------|---------|
 | Check pods | `kubectl get pods --context kind-kind` |
-| Restart service | `tilt trigger workflow-<service>` |
-| View logs | `tilt logs workflow-<service>` |
-| Run tests | `nx test <project>` (in dap-workspace) |
-| Run E2E | `pytest dap-workspace/tests/workflow/<test> -v` |
+| Restart component | `tilt trigger workflow-<service>` |
+| View component logs | `tilt logs workflow-<service>` |
 
-### Services
+### Locally Deployed Components
 
+These workflow services are deployed locally as shared dependencies:
 `workflow-catalog`, `workflow-executions-api`, `workflow-engine-worker`, `workflow-consumer`, `workflow-validator`, `workflows-worker`, `standalone-tasks-worker`
 
 ---
@@ -54,29 +53,12 @@ bash .cursor/skills/workflow-local-dev/scripts/db-query.sh "<SQL query>"
 
 ## Development Workflow
 
-1. **Make code changes**
-2. **Rebuild service**: `tilt trigger workflow-<service>`
-3. **Watch logs**: `kubectl logs -f <pod> --context kind-kind`
-4. **Run unit tests**: `nx test <project>` (from dap-workspace)
-5. **Run linter**: `nx lint <project>`
-6. **Run E2E tests** (if needed): `pytest dap-workspace/tests/workflow/<test> -v`
+Use this flow primarily when containers fail locally or when you need to debug runtime behavior.
 
----
-
-## Testing Protocol
-
-### Unit Tests (per modified NX project)
-```bash
-cd dap-workspace
-nx test <project-name>   # e.g., nx test workflow-catalog
-nx lint <project-name>   # e.g., nx lint workflow-catalog
-```
-
-### E2E Tests
-```bash
-source dap-workspace/tests/.venv/bin/activate
-pytest dap-workspace/tests/workflow/<path-to-specific-test> -v
-```
+1. **Capture current status**: `kubectl get pods --context kind-kind`
+2. **Rebuild/restart component**: `tilt trigger workflow-<service>`
+3. **Watch logs or health**: `kubectl logs -f <pod> --context kind-kind`
+4. **Inspect configuration or data** (if needed): `bash .cursor/skills/workflow-local-dev/scripts/db-query.sh "<SQL query>"`
 
 ---
 

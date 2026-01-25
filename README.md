@@ -36,7 +36,7 @@ Note that some of these skills rely on the usage of a minimum react 19.2.x versi
 
 ### `workflow-local-dev`
 
-**Description:** Assist with local deployment of workflow features in the DAP workspace. Provides access to Kubernetes (Kind), Tilt service management, database queries, and troubleshooting. Use when developing workflow services, debugging pods, checking logs, running tests, or troubleshooting the local workflow environment.
+**Description:** Support local workflow platform development in the DAP workspace across frontend, backend, and infra teams. Provides access to Kubernetes (Kind), Tilt service management, database queries, and troubleshooting. Use when building UI or API features, adjusting infra configurations, checking logs, running tests, or debugging issues against locally deployed workflow engine components.
 
 It provides:
 

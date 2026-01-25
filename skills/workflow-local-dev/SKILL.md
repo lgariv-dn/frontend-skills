@@ -88,6 +88,86 @@ pulsar-client consume persistent://public/dap/<topic> -s test-sub -n 10
 
 ---
 
+## Using Kubernetes MCP (When Available)
+
+If the Kubernetes MCP server is enabled, you can use MCP tools instead of shell commands for a more integrated experience. The MCP defaults to the `kind-kind` context.
+
+### List Pods
+
+```
+Tool: pods_list
+Arguments: { "labelSelector": "app=workflow-catalog" }
+```
+
+Or list all pods:
+```
+Tool: pods_list
+Arguments: {}
+```
+
+### Get Pod Logs
+
+```
+Tool: pods_log
+Arguments: {
+  "name": "workflow-catalog-xxxxx",
+  "namespace": "default",
+  "tail": 100
+}
+```
+
+For previous container logs (after crash):
+```
+Tool: pods_log
+Arguments: {
+  "name": "workflow-catalog-xxxxx",
+  "namespace": "default",
+  "previous": true
+}
+```
+
+### Execute Commands in Pods (e.g., Database Queries)
+
+```
+Tool: pods_exec
+Arguments: {
+  "name": "postgres-xxxxx",
+  "namespace": "default",
+  "command": ["psql", "-U", "postgres", "-d", "temporal", "-c", "SELECT * FROM workflow_engine.workflows ORDER BY created_at DESC LIMIT 5"]
+}
+```
+
+### Delete Pod (Force Restart)
+
+```
+Tool: pods_delete
+Arguments: {
+  "name": "workflow-catalog-xxxxx",
+  "namespace": "default"
+}
+```
+
+### Get Pod Details
+
+```
+Tool: pods_get
+Arguments: {
+  "name": "workflow-catalog-xxxxx",
+  "namespace": "default"
+}
+```
+
+### List Cluster Events (Troubleshooting)
+
+```
+Tool: events_list
+Arguments: { "namespace": "default" }
+```
+
+> **Note**: When using MCP tools, you don't need to specify `context` as it defaults to `kind-kind`. The MCP approach is useful when you want the agent to directly interact with the cluster without spawning shell processes.
+
+---
+
 ## Additional Resources
 
 - For complete service URLs and infrastructure details, see [reference.md](reference.md)

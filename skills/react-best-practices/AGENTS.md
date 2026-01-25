@@ -13,7 +13,7 @@ January 2026
 
 ## Abstract
 
-Comprehensive performance optimization guide for React applications, designed for AI agents and LLMs. Contains 30 rules across 7 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.
+Comprehensive performance optimization guide for React applications, designed for AI agents and LLMs. Contains 34 rules across 7 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.
 
 > **Note**: This version has been customized for pure React 19.2:
 > - Server-side data fetching and SWR rules removed (project uses react-query)
@@ -36,34 +36,38 @@ Comprehensive performance optimization guide for React applications, designed fo
    - 3.1 [Use Passive Event Listeners for Scrolling Performance](#31-use-passive-event-listeners-for-scrolling-performance)
    - 3.2 [Version and Minimize localStorage Data](#32-version-and-minimize-localstorage-data)
 4. [Re-render Optimization](#4-re-render-optimization) — **MEDIUM**
-   - 4.1 [Defer State Reads to Usage Point](#41-defer-state-reads-to-usage-point)
-   - 4.2 [Narrow Effect Dependencies](#42-narrow-effect-dependencies)
-   - 4.3 [Subscribe to Derived State](#43-subscribe-to-derived-state)
-   - 4.4 [Use Functional setState Updates](#44-use-functional-setstate-updates)
-   - 4.5 [Use Lazy State Initialization](#45-use-lazy-state-initialization)
-   - 4.6 [Use Transitions for Non-Urgent Updates](#46-use-transitions-for-non-urgent-updates)
+   - 4.1 [Calculate Derived State During Rendering](#41-calculate-derived-state-during-rendering)
+   - 4.2 [Defer State Reads to Usage Point](#42-defer-state-reads-to-usage-point)
+   - 4.3 [Narrow Effect Dependencies](#43-narrow-effect-dependencies)
+   - 4.4 [Put Interaction Logic in Event Handlers](#44-put-interaction-logic-in-event-handlers)
+   - 4.5 [Subscribe to Derived State](#45-subscribe-to-derived-state)
+   - 4.6 [Use Functional setState Updates](#46-use-functional-setstate-updates)
+   - 4.7 [Use Lazy State Initialization](#47-use-lazy-state-initialization)
+   - 4.8 [Use Transitions for Non-Urgent Updates](#48-use-transitions-for-non-urgent-updates)
+   - 4.9 [Use useRef for Transient Values](#49-use-useref-for-transient-values)
 5. [Rendering Performance](#5-rendering-performance) — **MEDIUM**
    - 5.1 [Animate SVG Wrapper Instead of SVG Element](#51-animate-svg-wrapper-instead-of-svg-element)
    - 5.2 [CSS content-visibility for Long Lists](#52-css-content-visibility-for-long-lists)
    - 5.3 [Optimize SVG Precision](#53-optimize-svg-precision)
    - 5.4 [Use Activity Component for Show/Hide](#54-use-activity-component-for-showhide)
    - 5.5 [Use Explicit Conditional Rendering](#55-use-explicit-conditional-rendering)
+   - 5.6 [Use useTransition Over Manual Loading States](#56-use-usetransition-over-manual-loading-states)
 6. [JavaScript Performance](#6-javascript-performance) — **LOW-MEDIUM**
-   - 6.1 [Batch DOM CSS Changes](#61-batch-dom-css-changes)
-   - 6.2 [Build Index Maps for Repeated Lookups](#62-build-index-maps-for-repeated-lookups)
-   - 6.3 [Cache Property Access in Loops](#63-cache-property-access-in-loops)
-   - 6.4 [Cache Repeated Function Calls](#64-cache-repeated-function-calls)
-   - 6.5 [Cache Storage API Calls](#65-cache-storage-api-calls)
-   - 6.6 [Combine Multiple Array Iterations](#66-combine-multiple-array-iterations)
-   - 6.7 [Early Length Check for Array Comparisons](#67-early-length-check-for-array-comparisons)
-   - 6.8 [Early Return from Functions](#68-early-return-from-functions)
-   - 6.9 [Hoist RegExp Creation](#69-hoist-regexp-creation)
-   - 6.10 [Use Loop for Min/Max Instead of Sort](#610-use-loop-for-minmax-instead-of-sort)
-   - 6.11 [Use Set/Map for O(1) Lookups](#611-use-setmap-for-o1-lookups)
-   - 6.12 [Use toSorted() Instead of sort() for Immutability](#612-use-tosorted-instead-of-sort-for-immutability)
+   - 6.1 [Build Index Maps for Repeated Lookups](#61-build-index-maps-for-repeated-lookups)
+   - 6.2 [Cache Property Access in Loops](#62-cache-property-access-in-loops)
+   - 6.3 [Cache Repeated Function Calls](#63-cache-repeated-function-calls)
+   - 6.4 [Cache Storage API Calls](#64-cache-storage-api-calls)
+   - 6.5 [Combine Multiple Array Iterations](#65-combine-multiple-array-iterations)
+   - 6.6 [Early Length Check for Array Comparisons](#66-early-length-check-for-array-comparisons)
+   - 6.7 [Early Return from Functions](#67-early-return-from-functions)
+   - 6.8 [Hoist RegExp Creation](#68-hoist-regexp-creation)
+   - 6.9 [Use Loop for Min/Max Instead of Sort](#69-use-loop-for-minmax-instead-of-sort)
+   - 6.10 [Use Set/Map for O(1) Lookups](#610-use-setmap-for-o1-lookups)
+   - 6.11 [Use toSorted() Instead of sort() for Immutability](#611-use-tosorted-instead-of-sort-for-immutability)
 7. [Advanced Patterns](#7-advanced-patterns) — **LOW**
-   - 7.1 [Store Event Handlers in Refs](#71-store-event-handlers-in-refs)
-   - 7.2 [useLatest for Stable Callback Refs](#72-uselatest-for-stable-callback-refs)
+   - 7.1 [Initialize App Once, Not Per Mount](#71-initialize-app-once-not-per-mount)
+   - 7.2 [Store Event Handlers in Refs](#72-store-event-handlers-in-refs)
+   - 7.3 [useLatest for Stable Callback Refs](#73-uselatest-for-stable-callback-refs)
 
 ---
 
@@ -519,7 +523,43 @@ function cachePrefs(user: FullUser) {
 
 Reducing unnecessary re-renders minimizes wasted computation and improves UI responsiveness.
 
-### 4.1 Defer State Reads to Usage Point
+### 4.1 Calculate Derived State During Rendering
+
+**Impact: MEDIUM (avoids redundant renders and state drift)**
+
+If a value can be computed from current props/state, do not store it in state or update it in an effect. Derive it during render to avoid extra renders and state drift. Do not set state in effects solely in response to prop changes; prefer derived values or keyed resets instead.
+
+**Incorrect: redundant state and effect**
+
+```tsx
+function Form() {
+  const [firstName, setFirstName] = useState('First')
+  const [lastName, setLastName] = useState('Last')
+  const [fullName, setFullName] = useState('')
+
+  useEffect(() => {
+    setFullName(firstName + ' ' + lastName)
+  }, [firstName, lastName])
+
+  return <p>{fullName}</p>
+}
+```
+
+**Correct: derive during render**
+
+```tsx
+function Form() {
+  const [firstName, setFirstName] = useState('First')
+  const [lastName, setLastName] = useState('Last')
+  const fullName = firstName + ' ' + lastName
+
+  return <p>{fullName}</p>
+}
+```
+
+Reference: [https://react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect)
+
+### 4.2 Defer State Reads to Usage Point
 
 **Impact: MEDIUM (avoids unnecessary subscriptions)**
 
@@ -554,7 +594,7 @@ function ShareButton({ chatId }: { chatId: string }) {
 }
 ```
 
-### 4.2 Narrow Effect Dependencies
+### 4.3 Narrow Effect Dependencies
 
 **Impact: LOW (minimizes effect re-runs)**
 
@@ -595,7 +635,48 @@ useEffect(() => {
 }, [isMobile])
 ```
 
-### 4.3 Subscribe to Derived State
+### 4.4 Put Interaction Logic in Event Handlers
+
+**Impact: MEDIUM (avoids effect re-runs and duplicate side effects)**
+
+If a side effect is triggered by a specific user action (submit, click, drag), run it in that event handler. Do not model the action as state + effect; it makes effects re-run on unrelated changes and can duplicate the action.
+
+**Incorrect: event modeled as state + effect**
+
+```tsx
+function Form() {
+  const [submitted, setSubmitted] = useState(false)
+  const theme = useContext(ThemeContext)
+
+  useEffect(() => {
+    if (submitted) {
+      post('/api/register')
+      showToast('Registered', theme)
+    }
+  }, [submitted, theme])
+
+  return <button onClick={() => setSubmitted(true)}>Submit</button>
+}
+```
+
+**Correct: do it in the handler**
+
+```tsx
+function Form() {
+  const theme = useContext(ThemeContext)
+
+  function handleSubmit() {
+    post('/api/register')
+    showToast('Registered', theme)
+  }
+
+  return <button onClick={handleSubmit}>Submit</button>
+}
+```
+
+Reference: [https://react.dev/learn/removing-effect-dependencies#should-this-code-move-to-an-event-handler](https://react.dev/learn/removing-effect-dependencies#should-this-code-move-to-an-event-handler)
+
+### 4.5 Subscribe to Derived State
 
 **Impact: MEDIUM (reduces re-render frequency)**
 
@@ -620,7 +701,7 @@ function Sidebar() {
 }
 ```
 
-### 4.4 Use Functional setState Updates
+### 4.6 Use Functional setState Updates
 
 **Impact: MEDIUM (prevents stale closures)**
 
@@ -684,7 +765,7 @@ function TodoList() {
 
 - State doesn't depend on previous value
 
-### 4.5 Use Lazy State Initialization
+### 4.7 Use Lazy State Initialization
 
 **Impact: MEDIUM (wasted computation on every render)**
 
@@ -738,7 +819,7 @@ Use lazy initialization when computing initial values from localStorage/sessionS
 
 For simple primitives (`useState(0)`), direct references (`useState(props.value)`), or cheap literals (`useState({})`), the function form is unnecessary.
 
-### 4.6 Use Transitions for Non-Urgent Updates
+### 4.8 Use Transitions for Non-Urgent Updates
 
 **Impact: MEDIUM (maintains UI responsiveness)**
 
@@ -771,6 +852,75 @@ function ScrollTracker() {
     window.addEventListener('scroll', handler, { passive: true })
     return () => window.removeEventListener('scroll', handler)
   }, [])
+}
+```
+
+### 4.9 Use useRef for Transient Values
+
+**Impact: MEDIUM (avoids unnecessary re-renders on frequent updates)**
+
+When a value changes frequently and you don't want a re-render on every update (e.g., mouse trackers, intervals, transient flags), store it in `useRef` instead of `useState`. Keep component state for UI; use refs for temporary DOM-adjacent values. Updating a ref does not trigger a re-render.
+
+**Incorrect: renders every update**
+
+```tsx
+function Tracker() {
+  const [lastX, setLastX] = useState(0)
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => setLastX(e.clientX)
+    window.addEventListener('mousemove', onMove)
+    return () => window.removeEventListener('mousemove', onMove)
+  }, [])
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: lastX,
+        width: 8,
+        height: 8,
+        background: 'black',
+      }}
+    />
+  )
+}
+```
+
+**Correct: no re-render for tracking**
+
+```tsx
+function Tracker() {
+  const lastXRef = useRef(0)
+  const dotRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      lastXRef.current = e.clientX
+      const node = dotRef.current
+      if (node) {
+        node.style.transform = `translateX(${e.clientX}px)`
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    return () => window.removeEventListener('mousemove', onMove)
+  }, [])
+
+  return (
+    <div
+      ref={dotRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: 8,
+        height: 8,
+        background: 'black',
+        transform: 'translateX(0px)',
+      }}
+    />
+  )
 }
 ```
 
@@ -941,6 +1091,77 @@ function Badge({ count }: { count: number }) {
 // When count = 5, renders: <div><span class="badge">5</span></div>
 ```
 
+### 5.6 Use useTransition Over Manual Loading States
+
+**Impact: LOW (reduces re-renders and improves code clarity)**
+
+Use `useTransition` instead of manual `useState` for loading states. This provides built-in `isPending` state and automatically manages transitions.
+
+**Incorrect: manual loading state**
+
+```tsx
+function SearchResults() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSearch = async (value: string) => {
+    setIsLoading(true)
+    setQuery(value)
+    const data = await fetchResults(value)
+    setResults(data)
+    setIsLoading(false)
+  }
+
+  return (
+    <>
+      <input onChange={(e) => handleSearch(e.target.value)} />
+      {isLoading && <Spinner />}
+      <ResultsList results={results} />
+    </>
+  )
+}
+```
+
+**Correct: useTransition with built-in pending state**
+
+```tsx
+import { useTransition, useState } from 'react'
+
+function SearchResults() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [isPending, startTransition] = useTransition()
+
+  const handleSearch = (value: string) => {
+    setQuery(value) // Update input immediately
+    
+    startTransition(async () => {
+      // Fetch and update results
+      const data = await fetchResults(value)
+      setResults(data)
+    })
+  }
+
+  return (
+    <>
+      <input onChange={(e) => handleSearch(e.target.value)} />
+      {isPending && <Spinner />}
+      <ResultsList results={results} />
+    </>
+  )
+}
+```
+
+**Benefits:**
+
+- **Automatic pending state**: No need to manually manage `setIsLoading(true/false)`
+- **Error resilience**: Pending state correctly resets even if the transition throws
+- **Better responsiveness**: Keeps the UI responsive during updates
+- **Interrupt handling**: New transitions automatically cancel pending ones
+
+Reference: [https://react.dev/reference/react/useTransition](https://react.dev/reference/react/useTransition)
+
 ---
 
 ## 6. JavaScript Performance
@@ -949,85 +1170,7 @@ function Badge({ count }: { count: number }) {
 
 Micro-optimizations for hot paths can add up to meaningful improvements.
 
-### 6.1 Batch DOM CSS Changes
-
-**Impact: MEDIUM (reduces reflows/repaints)**
-
-Avoid changing styles one property at a time. Group multiple CSS changes together via classes or `cssText` to minimize browser reflows.
-
-**Incorrect: multiple reflows**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  // Each line triggers a reflow
-  element.style.width = '100px'
-  element.style.height = '200px'
-  element.style.backgroundColor = 'blue'
-  element.style.border = '1px solid black'
-}
-```
-
-**Correct: add class - single reflow**
-
-```typescript
-// CSS file
-.highlighted-box {
-  width: 100px;
-  height: 200px;
-  background-color: blue;
-  border: 1px solid black;
-}
-
-// JavaScript
-function updateElementStyles(element: HTMLElement) {
-  element.classList.add('highlighted-box')
-}
-```
-
-**Correct: change cssText - single reflow**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  element.style.cssText = `
-    width: 100px;
-    height: 200px;
-    background-color: blue;
-    border: 1px solid black;
-  `
-}
-```
-
-**React example:**
-
-```tsx
-// Incorrect: changing styles one by one
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  
-  useEffect(() => {
-    if (ref.current && isHighlighted) {
-      ref.current.style.width = '100px'
-      ref.current.style.height = '200px'
-      ref.current.style.backgroundColor = 'blue'
-    }
-  }, [isHighlighted])
-  
-  return <div ref={ref}>Content</div>
-}
-
-// Correct: toggle class
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  return (
-    <div className={isHighlighted ? 'highlighted-box' : ''}>
-      Content
-    </div>
-  )
-}
-```
-
-Prefer CSS classes over inline styles when possible. Classes are cached by the browser and provide better separation of concerns.
-
-### 6.2 Build Index Maps for Repeated Lookups
+### 6.1 Build Index Maps for Repeated Lookups
 
 **Impact: LOW-MEDIUM (1M ops to 2K ops)**
 
@@ -1061,7 +1204,7 @@ Build map once (O(n)), then all lookups are O(1).
 
 For 1000 orders × 1000 users: 1M ops → 2K ops.
 
-### 6.3 Cache Property Access in Loops
+### 6.2 Cache Property Access in Loops
 
 **Impact: LOW-MEDIUM (reduces lookups)**
 
@@ -1085,7 +1228,7 @@ for (let i = 0; i < len; i++) {
 }
 ```
 
-### 6.4 Cache Repeated Function Calls
+### 6.3 Cache Repeated Function Calls
 
 **Impact: MEDIUM (avoid redundant computation)**
 
@@ -1161,7 +1304,7 @@ Use a Map (not a hook) so it works everywhere: utilities, event handlers, not ju
 
 Reference: [https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast](https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast)
 
-### 6.5 Cache Storage API Calls
+### 6.4 Cache Storage API Calls
 
 **Impact: LOW-MEDIUM (reduces expensive I/O)**
 
@@ -1227,7 +1370,7 @@ document.addEventListener('visibilitychange', () => {
 
 If storage can change externally (another tab, server-set cookies), invalidate cache:
 
-### 6.6 Combine Multiple Array Iterations
+### 6.5 Combine Multiple Array Iterations
 
 **Impact: LOW-MEDIUM (reduces iterations)**
 
@@ -1255,7 +1398,7 @@ for (const user of users) {
 }
 ```
 
-### 6.7 Early Length Check for Array Comparisons
+### 6.6 Early Length Check for Array Comparisons
 
 **Impact: MEDIUM-HIGH (avoids expensive operations when lengths differ)**
 
@@ -1304,7 +1447,7 @@ This new approach is more efficient because:
 
 - It returns early when a difference is found
 
-### 6.8 Early Return from Functions
+### 6.7 Early Return from Functions
 
 **Impact: LOW-MEDIUM (avoids unnecessary computation)**
 
@@ -1350,7 +1493,7 @@ function validateUsers(users: User[]) {
 }
 ```
 
-### 6.9 Hoist RegExp Creation
+### 6.8 Hoist RegExp Creation
 
 **Impact: LOW-MEDIUM (avoids recreation)**
 
@@ -1390,7 +1533,7 @@ regex.test('foo')  // false, lastIndex = 0
 
 Global regex (`/g`) has mutable `lastIndex` state:
 
-### 6.10 Use Loop for Min/Max Instead of Sort
+### 6.9 Use Loop for Min/Max Instead of Sort
 
 **Impact: LOW (O(n) instead of O(n log n))**
 
@@ -1468,7 +1611,7 @@ const max = Math.max(...numbers)
 
 This works for small arrays but can be slower for very large arrays due to spread operator limitations. Use the loop approach for reliability.
 
-### 6.11 Use Set/Map for O(1) Lookups
+### 6.10 Use Set/Map for O(1) Lookups
 
 **Impact: LOW-MEDIUM (O(n) to O(1))**
 
@@ -1488,7 +1631,7 @@ const allowedIds = new Set(['a', 'b', 'c', ...])
 items.filter(item => allowedIds.has(item.id))
 ```
 
-### 6.12 Use toSorted() Instead of sort() for Immutability
+### 6.11 Use toSorted() Instead of sort() for Immutability
 
 **Impact: MEDIUM-HIGH (prevents mutation bugs in React state)**
 
@@ -1553,7 +1696,45 @@ const sorted = [...items].sort((a, b) => a.value - b.value)
 
 Advanced patterns for specific cases that require careful implementation.
 
-### 7.1 Store Event Handlers in Refs
+### 7.1 Initialize App Once, Not Per Mount
+
+**Impact: LOW-MEDIUM (avoids duplicate init in development)**
+
+Do not put app-wide initialization that must run once per app load inside `useEffect([])` of a component. Components can remount and effects will re-run. Use a module-level guard or top-level init in the entry module instead.
+
+**Incorrect: runs twice in dev, re-runs on remount**
+
+```tsx
+function Comp() {
+  useEffect(() => {
+    loadFromStorage()
+    checkAuthToken()
+  }, [])
+
+  // ...
+}
+```
+
+**Correct: once per app load**
+
+```tsx
+let didInit = false
+
+function Comp() {
+  useEffect(() => {
+    if (didInit) return
+    didInit = true
+    loadFromStorage()
+    checkAuthToken()
+  }, [])
+
+  // ...
+}
+```
+
+Reference: [https://react.dev/learn/you-might-not-need-an-effect#initializing-the-application](https://react.dev/learn/you-might-not-need-an-effect#initializing-the-application)
+
+### 7.2 Store Event Handlers in Refs
 
 **Impact: LOW (stable subscriptions)**
 
@@ -1589,7 +1770,7 @@ function useWindowEvent(event: string, handler: () => void) {
 
 `useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
 
-### 7.2 useLatest for Stable Callback Refs
+### 7.3 useLatest for Stable Callback Refs
 
 **Impact: LOW (prevents effect re-runs)**
 

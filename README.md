@@ -15,7 +15,7 @@ npx add-skill lgariv-dn/frontend-skills
 
 ### `react-best-practices`
 
-**Description:** React performance optimization guidelines adapted from `vercel-labs/agent-skills` repo - without all of their extra next.js optimization and focused on react 19 best practices. This skill should be automatically used when writing, reviewing, or refactoring React code to ensure optimal performance patterns.
+**Description:** React performance optimization guidelines adapted from `vercel-labs/agent-skills` (last updated Sunday, 25th of January 2026) repo - without all of their extra next.js optimization and focused on react 19 best practices. This skill should be automatically used when writing, reviewing, or refactoring React code to ensure optimal performance patterns.
 
 It provides a comprehensive set of **30 rules across 7 categories**, prioritized by impact:
 
@@ -48,3 +48,26 @@ It provides:
 - **Service Reference** — Complete list of service URLs, infrastructure ports, and database access details in `skills/workflow-local-dev/reference.md`
 
 **Covered Services:** `workflow-catalog`, `workflow-executions-api`, `workflow-engine-worker`, `workflow-consumer`, `workflow-validator`, `workflows-worker`, `standalone-tasks-worker`
+
+### `e2e-ci-debug`
+
+**Description:** Debug CI E2E failures from pull requests by inspecting GitHub checks, downloading Playwright reports, and mapping failures to local Nx commands. Use when debugging failed E2E tests in PR workflows.
+
+It provides:
+
+- **Automated Artifact Download** — Download Playwright test artifacts from GitHub Actions for the current PR or a specific run
+- **Intelligent JUnit Parsing** — Parse JUnit XML results to extract structured failure information with file locations, error messages, and stack traces
+- **Screenshot Analysis for AI** — Extract absolute paths to failure screenshots so AI models can visually analyze where tests failed using the Read tool
+- **Local Reproduction Guidance** — Generate ready-to-run commands for reproducing failures locally with Nx and Playwright
+- **Failure Pattern Recognition** — Common patterns for timeouts, selector issues, setup failures, and flaky tests with solutions
+- **CI Workflow Context** — Understanding of the PR workflow chain (`dispatcher.yml` → `pr-core.yaml` → `pr-processor.yml`)
+
+**Utility Scripts:**
+- `download-artifacts.sh` — Download Playwright artifacts from GitHub Actions
+- `parse-junit.py` — Parse JUnit XML, extract failures, and find screenshot/trace/video paths (supports `--json` and `--screenshots`)
+- `find-failing-job.sh` — Find failing E2E jobs in PR workflows
+- `cleanup-artifacts.sh` — Remove downloaded artifacts after debugging
+
+**Supported Test Suites:**
+- Main Workflow E2E Tests (`dap-workspace/tests/workflow/typescript/`)
+- Component-Level E2E Tests (`dap-workspace/libs/workflow/workflow-fe/workflow-fe-e2e/`)

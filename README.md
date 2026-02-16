@@ -71,3 +71,15 @@ It provides:
 **Supported Test Suites:**
 - Main Workflow E2E Tests (`dap-workspace/tests/workflow/typescript/`)
 - Component-Level E2E Tests (`dap-workspace/libs/workflow/workflow-fe/workflow-fe-e2e/`)
+
+### `yeet`
+
+**Description:** End-to-end Git flow skill for when the user explicitly asks to stage, commit, push, and open a GitHub pull request with `gh` in one streamlined sequence.
+
+It provides:
+
+- **Prerequisite Checks** — Verifies `gh` is installed and authenticated before proceeding
+- **Naming Conventions** — Branch, commit, and PR title conventions aligned to workflow/Jira style
+- **Commit Message Rules** — Structured commit formatting guidance with type prefixes and bullet style
+- **Safe Git Workflow** — Clear sequence for branch creation, staging, committing, and push with tracking
+- **PR Creation Guidance** — Draft PR creation with detailed markdown body requirements

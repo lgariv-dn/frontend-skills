@@ -49,6 +49,20 @@ It provides:
 
 **Covered Services:** `workflow-catalog`, `workflow-executions-api`, `workflow-engine-worker`, `workflow-consumer`, `workflow-validator`, `workflows-worker`, `standalone-tasks-worker`
 
+### `workflow-fe-stores`
+
+**Description:** End-to-end workflow for changing **`@dap-workspace/workflow-fe-stores`** in the DAP monorepo: choosing the right Zustand store, slices, base and computed selectors (`reselect`), `useShallow` action hooks, `stores/shared/` utilities, registry (`workflow-store-registry`), package exports, and consuming hooks in workflow FE apps. Use when adding client state, preferences, execution inputs, builder state, or wiring `useWorkflow*Store` / selectors in builder, catalog, or apps.
+
+It provides:
+
+- **Store map** — Which domain uses `workflow-builder`, `workflow-catalog`, `workflow-tasks`, `workflow-instances`, `task-builder`, or `flags`
+- **Step 2a** — Types, consts, slices, persist/rehydrate, selectors, shared helpers, barrels, action hooks, non-React accessors, `src/index.ts`, tests
+- **Step 2b** — New store: middleware choice (persist vs minimal), registry `STORES` vs `init()`, `resetAll` per-store APIs, `getSnapshot`, re-exports
+- **UI wiring** — Selectors for reads, action hooks for writes, `WorkflowStoreProvider` / `initialize` / subscriptions
+- **Verification** — `pnpm --filter @dap-workspace/workflow-fe-stores test` and follow-on E2E when needed
+
+**Companion doc in DAP:** `.cursor/rules/workflow-fe-react-patterns.mdc` (Zustand Store Conventions) and `workflow-fe-stores/.ai/` should be read in the same repo; the skill opens with a short **repository scope** note for path mapping outside DAP.
+
 ### `e2e-ci-debug`
 
 **Description:** Debug CI E2E failures from pull requests by inspecting GitHub checks, downloading Playwright reports, and mapping failures to local Nx commands. Use when debugging failed E2E tests in PR workflows.

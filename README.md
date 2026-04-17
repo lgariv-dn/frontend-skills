@@ -8,7 +8,7 @@ From the root of this repo, you can install the skills into your agent environme
 
 
 ```bash
-npx add-skill lgariv-dn/frontend-skills
+npx skills add lgariv-dn/frontend-skills
 ```
 
 ## Available Skills

@@ -83,3 +83,19 @@ It provides:
 - **Commit Message Rules** — Structured commit formatting guidance with type prefixes and bullet style
 - **Safe Git Workflow** — Clear sequence for branch creation, staging, committing, and push with tracking
 - **PR Creation Guidance** — Draft PR creation with detailed markdown body requirements
+
+### `pr-demo-recorder`
+
+**Description:** Records scripted webreel demos of a PR's changes using the current branch's PR description, linked Jira ticket, reproduction artifacts, and newly-added Playwright E2E tests as the source of truth. Use when the user asks to "create a demo for this PR", "record a webreel for AR-XXXXX", "demo this fix/feature", "generate a demo video", or similar. Handles single-concern PRs, large multi-concern PRs, and epic-level demos. Always plans scope, flow, data source, and format with the user via `AskUserQuestion` before recording — never records unprompted.
+
+It provides:
+
+- **Prerequisite Checks** — Verifies the `webreel` CLI, the companion `~/.claude/skills/webreel/` skill, the `gh` CLI (authenticated), and the `drogers0/gh-image` extension are all installed before any other work proceeds (`scripts/ensure-webreel.sh`).
+- **Research Workflow** — Parallel extraction of PR body, Jira ticket (via Atlassian MCP), diff filter for `*.e2e.spec.ts` / `*.seed.ts`, POM selector mining, and repro-artifact discovery.
+- **Interactive Planning** — Structured `AskUserQuestion` prompts covering scope (one video vs many), flow-per-video, data source (seed vs reuse vs API-exec), viewport, caption style, and delivery channel.
+- **Config Generation** — Selector-priority rules (text > aria-label > data-testid > CSS-Module `[class*="..."]` > `#id`), POM → webreel step translation table, pacing defaults (`defaultDelay: 400`, `fps: 60`, `quality: 85`), and a below-the-fold check that handles nested scroll containers or falls back to `zoom`.
+- **Caption System (two-pass record + composite)** — Documents webreel 0.1.4's hardcoded 800 ms HUD behavior and the Python timeline-extend workaround that stretches each caption to ~2500 ms by editing `.webreel/timelines/*.timeline.json` and re-running `webreel composite` (~9 s for two videos, no re-record, no ffmpeg).
+- **Caption Writing Rules** — Per-PR-type style split: bug-fix PRs use `Before: '<literal UI string>' → now: <new state>` with quoted placeholder text as evidence; new-feature PRs use a Linear-changelog-flavored declarative voice. Rejected-patterns table enumerates "hardcoded", "cleared selection", "blanked", "real values", etc. with the quote-the-UI replacement for each. `≤9` words hard cap; `now` allowed as a temporal marker, other superlatives ("right here", "always there") forbidden.
+- **Asset Upload** — `gh image` (via the `drogers0/gh-image` extension) uploads demo MP4s to native `github.com/user-attachments/assets/<uuid>` URLs with session-gated visibility. **Never commits videos to a branch** — the skill contains explicit guardrails and a memory entry against repo bloat.
+- **PR Body Embedding** — Bare `user-attachments` URL on its own line auto-renders as a playable `<video>` in GitHub-rendered PR descriptions; the skill preserves existing screenshots/copy when prepending the demo section.
+- **Frame Verification** — Post-record sampling via ffmpeg with explicit instruction to read each frame with the `Read` tool, confirming the cursor landed where expected and the HUD is visible during each narrative beat.

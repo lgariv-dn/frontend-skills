@@ -1,7 +1,7 @@
 ---
-
-## name: pr-demo-recorder
+name: pr-demo-recorder
 description: Records scripted webreel demos of a PR's changes using the current branch's PR description, linked Jira ticket, reproduction artifacts, and newly-added Playwright E2E tests as the source of truth. Use when the user asks to "create a demo for this PR", "record a webreel for AR-XXXXX", "demo this fix/feature", "generate a demo video", "make a video of the E2E flow", "demo this epic", or "record a visual for this change". Handles single-concern PRs, large multi-concern PRs, and epic-level demos with one or many videos. Always plans scope, flow, data source, and format with the user via AskUserQuestion before recording — never records unprompted.
+---
 
 # PR Demo Recorder
 

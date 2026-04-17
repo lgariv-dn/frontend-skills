@@ -62,7 +62,12 @@ Never assume. Ask about every non-obvious decision. Batch 1–3 related question
 4. **Environment** — confirm dev server is on the fix branch. If `git branch --show-current` doesn't match the fix branch, flag it and ask whether to switch.
 5. **Viewport + format** — desktop preset (`1920×1080`, `1600×900`, `macbook-pro`)? Output: MP4 / GIF / WebM? Duration target (short <10s / standard 15–30s / detailed 30–60s)?
 6. **Captions / HUD** — include keystroke overlays, custom cursor theme, or annotation callouts?
-7. **Delivery** — attach to PR description, Jira comment, Slack post, or leave on disk?
+7. **Delivery** — ALWAYS ask as a **multi-select `AskUserQuestion`** (set `multiSelect: true`) with exactly these three options — the user may pick any combination:
+   - **Prepend to GitHub PR description** — upload via `gh image`, then `gh pr edit` to prepend the embed while preserving every byte of existing body content.
+   - **Post as a comment on the linked Jira ticket** — upload once (reuse the `gh image` URL if already uploaded; otherwise upload separately for Jira) and post a comment on the Jira issue from branch/title (e.g. `AR-58199`) via the Atlassian MCP `addCommentToJiraIssue`.
+   - **Save to the user's Downloads folder** — copy the MP4 (and thumbnail PNG if present) to `~/Downloads/` and report the absolute paths. No network upload.
+
+   Do NOT offer Slack, disk-only-in-repo, gist, or other channels — keep this question stable and minimal. The user can always type custom text into the "Other" field if they need something else.
 
 For **epic-level demos**: plan one video per child story, plus an optional "epic summary" video for the end-to-end user journey. Ask which subset of children to cover before you generate configs.
 
@@ -130,7 +135,9 @@ Captions are the spine of the demo. Vague labels like "Task input we passed in" 
    - **Bug-fix PRs → Before→After contrast** (changelog voice). Use an arrow (`→`) to make the delta explicit. The viewer is typically a reviewer who needs to see the fix.
    - **New-feature PRs → Keynote reveal** (Apple-keynote voice). Declarative, present-tense, benefit-forward. The viewer wants the capability, not the bug story.
    - **Infra / refactor / perf PRs → Keynote reveal** with a metric instead of a benefit when available ("10× faster", "5 fewer renders", "No more network roundtrip").
-3. **Action captions stay the same across styles.** Regardless of PR type, action captions are 2–4 word imperatives: "Click Start", "Open the Completed tab", "Drag Branch 2". They anchor the viewer to what the cursor is about to do. The STYLE distinction lives in the **reveal captions** — the ones that announce what changed.
+3. **Action captions are OPTIONAL — drop them when the cursor action is self-evident.** Regardless of PR type, when an action caption is used it's a 2–4 word imperative ("Click Start", "Open the Completed tab", "Drag Branch 2"). But captions must *earn* their screen time — if the cursor visibly lands on the obvious target and the UI immediately responds, the caption just echoes the pixels and trains the viewer to skim-read. **Default to no caption on such beats.** Spend captions on (a) before/after state reveals, (b) behaviors the viewer would miss without annotation ("Embedded tree expanded by default"), (c) values-on-hover that name what's being shown. The STYLE distinction lives in the **reveal captions** — the ones that announce what changed.
+
+   **Self-test before adding an action caption:** "If I remove this caption, does the viewer lose information or just lose a redundant echo?" If the latter, drop it. Captions like "Drill into child", "Back via breadcrumb", "Open the panel" — where the cursor motion + click fully communicate the action — are the common failure mode. When unsure, consult the user with concrete options (including one that drops the caption entirely) rather than shipping a narrating caption.
 
 #### Bug-fix example (AR-55120 pattern) — use this for bug-fix PRs
 
@@ -141,7 +148,20 @@ Action:  "Click Finish"                                             (2w)
 Reveal:  "Before: 'No output data' → now: workflow output."         (7w)
 ```
 
-The structure is **`Before: <literal UI string> → now: <new UI state>.`** Arrow + colon + quotes. Not negotiable.
+The arrow template `Before: <literal UI string> → now: <new UI state>.` is ONE tool — it shines when you can quote literal UI text on both sides. It is NOT the default voice for every bug-fix caption. When there's no literal string to quote on the "before" side, the template collapses into telegram-speak ("Before: status icons disappeared → now: stay present.") that reads like machine translation. In those cases, **write a natural-prose sentence instead** using connectives like *used to / previously / no longer / now / instead of*:
+
+```
+Natural prose (preferred when no literal UI string to quote):
+  "Branches were flat; now nested under the split."            (8w)
+  "Drill-back used to drop status icons; now they persist."    (9w)
+  "The sidebar no longer resets on return."                    (7w)
+
+Arrow template (preferred when quoting a literal UI placeholder):
+  "Before: 'No input data' → now: full workflow input."        (8w)
+  "Before: 'No output data' → now: workflow output."           (7w)
+```
+
+Read every caption aloud. If it sounds stilted — comma-arrow-fragment, verb tenses that don't match, missing connective words — rewrite as a single natural sentence. The caption should read like a reviewer describing the fix in one breath, not like a template filled in by a script.
 
 ##### Why this specific shape beats the variants that keep failing review
 
@@ -159,6 +179,7 @@ Rejected patterns, why they fail, and the quote-the-UI replacement:
 | `"Click did nothing"` | Accurate but too abstract. Gives the viewer nothing to anchor on visually. | Quote what was on the screen during the "nothing" state. |
 | `"Always empty"` / `"Full workflow input"` | Abstract qualifiers without an anchor. "Always empty" of what? "Full" of what? | Name the specific UI string that proved it was empty. |
 | `"Real values. Every field."` | "Real" is a weak contrast. "Every field" hand-waves — which fields? | The hover beats already show the fields. Don't narrate what the cursor is about to demonstrate. |
+| `"Before: status icons disappeared → now: stay present."` | Forced arrow template applied where no literal UI string is quoted. Grammatically inconsistent fragments ("disappeared" past-tense verb vs "stay" bare infinitive) welded by an arrow. Reads caveman-like. | Drop the template; write natural prose: `"Status icons used to vanish on drill-back; now they persist."` |
 
 **The rule that makes the right phrasing fall out automatically:** *Before a reveal caption is finalized, grep the codebase for the user-facing placeholder string that rendered in the buggy state.* If you can find it (via `t('...noInput')`, `noData`, `emptyState`, `placeholder`, or a hardcoded string in the component), quote it. If you can't find one (the bug was behavioral, not a placeholder), describe what the viewer saw at the viewport level — "Page wouldn't load past row 20", "Save button stayed grey" — with quotes around anything literal.
 
@@ -201,6 +222,28 @@ Short present-tense statements of the new behavior. No contrast with the old sta
 - Repeating the section header ("The Input section shows input"). Caption should add something the section header doesn't already say.
 - Three-clause sentences. If you need a comma AND a dash AND an arrow, you're writing documentation, not a caption.
 
+### Caption-state matching: place each reveal caption where its "after" state is newly visible
+
+A reveal caption claims a transition — "X used to be broken; it's now fixed." The viewer believes the claim only if, at the moment the caption appears, they can see evidence of the new state that contradicts the claimed old state. If the UI at caption time is **identical in the broken and fixed builds** (because the bug hasn't triggered yet in this flow), the caption is misplaced — the viewer sees a normal-looking UI with a caption asserting it used to be broken, and the credibility gap makes every other caption suspect.
+
+**Research rule (do this BEFORE drafting captions):**
+
+For each fix in the PR, map it to the specific user-flow trigger where the old code would have rendered the broken UI. A fix for "sidebar collapses on drill-back" is only visible at the post-drill-back beat; a fix for "Save button disabled with valid input" is only visible after the user types valid input. A fix for "branches flat at root instead of nested" is visible at initial render.
+
+Build a table like this in your research scratchpad:
+
+| Fix | Old-code trigger | First visible "after" beat in recording |
+|-----|------------------|-----------------------------------------|
+| Branch nesting under split | Initial page load | Beat 1 (page load) |
+| Status icons survive drill-back | After drill-back completes | Beat N (post-breadcrumb-click) |
+| Expansion state preserved | After drill-back completes | Beat N (post-breadcrumb-click) |
+
+Captions go on the "first visible 'after' beat" row for each fix. Fixes that share a trigger (rows 2 + 3 above) combine into one caption at that beat — don't fire two separate captions claiming the same transition at the same moment.
+
+**Anti-pattern:** A single summary caption at t=0 listing every symptom in the PR. The viewer sees a clean sidebar and hears "status icons used to vanish" — but the icons are right there. The caption describes a future state (after drill-back in the old code) while the viewer is looking at a state that's identical across builds. Don't do it.
+
+**Self-check for each caption:** "If the old (broken) code were running at this exact beat, what would the viewer see that's different from the current frame?" If the answer is "nothing different," the caption does not belong here — move it to the beat where the answer becomes concrete.
+
 ### Timing guarantee: each caption needs ≥2500 ms of post-caption dwell
 
 Because the timeline-extend pass caps each caption at the NEXT caption's start time, a caption whose `key` step is followed by <2500 ms of steps (cursor travel + clicks + pauses) before the next `key` step gets truncated. Engineer the config so:
@@ -217,7 +260,7 @@ The Python extend-script caps at the next HUD run, so over-allocating dwell is h
 - Don't reach for ffmpeg `drawtext` post-processing — it re-encodes the whole video for 30+ s and duplicates functionality webreel's own compositor already has.
 - Don't attach the same caption to three consecutive beats — one caption per narrative moment.
 
-**Below-the-fold sanity check** — after a config is written and before the first record run, think: *does every target element fit in the viewport when its parent panel is at its natural size?* Details panels and drawers often have internal `overflow-y: auto` that hides later sections behind scroll. For any step that relies on text or a node further down in a scrollable container, include an explicit scroll step:
+**Below-the-fold sanity check** — after a config is written and before the first record run, think: *does every target element fit in the viewport when its parent panel is at its natural size?* Details panels and drawers often have internal `overflow-y: auto` that hides later sections behind scroll. For any step that relies on text or a node further down in a scrollable container, include an explicit scroll step. See **[references/common-interactions.md § Scroll the page or a specific component](references/common-interactions.md)** for the full scroll patterns — window vs. container scroll, negative `y` to go back up, picking the right scroll container when the obvious parent doesn't move, and chaining scrolls with `wait` for async content. Quick shape:
 
 ```json
 { "action": "scroll", "selector": "#details", "y": 300 },
@@ -252,42 +295,31 @@ Report to the user:
 - Duration, file size, viewport per video
 - One-line summary per video describing what it shows
 
-Then ask which delivery channel: PR description attachment, Jira comment, Slack post, or disk only. Delegate the actual upload to existing commands (`/yeet`, `/pr-desc`, or manual `gh pr edit` / Jira MCP).
+Then ask — via a **multi-select `AskUserQuestion`** — which delivery channels to use. The options are fixed: **Prepend to GitHub PR description**, **Post as a comment on the linked Jira ticket**, **Save to the user's Downloads folder**. The user may pick any combination. Execute each selected channel in turn: `scripts/upload-to-pr.sh` for the PR body, `mcp__claude_ai_Atlassian__addCommentToJiraIssue` with the same uploaded URL embedded in the comment body for Jira, and `cp videos/<name>.mp4 ~/Downloads/` (plus the thumbnail `.png` if it exists) for the Downloads copy.
 
-**CRITICAL — never commit video files to a branch.** Do NOT `git add` videos, do NOT push them, do NOT use the GitHub Contents API to upload them to a branch, and do NOT recreate deleted branches just to host assets. Every one of those approaches bloats the repo with multi-megabyte binaries that live forever in git history. This is non-negotiable even if the user earlier authorized "upload to the PR description" — "upload" means host the asset somewhere GitHub can stream it from, then embed a URL in the PR body. It does NOT mean "commit the video." Ever.
+**CRITICAL — never commit video files to a branch.** Upload = host the asset somewhere GitHub can stream it from, then embed a URL in the PR body. It does NOT mean `git add` the video, push it, use the Contents API to commit it, or recreate deleted branches to host assets. Every one of those approaches bloats the repo with multi-megabyte binaries that live in git history forever. This is non-negotiable even if the user authorized "upload to the PR description" — that wording does not override the no-commit rule.
 
-**Correct upload path — use the `gh-image` extension.** The community extension [drogers0/gh-image](https://github.com/drogers0/gh-image) extracts the browser's GitHub session cookie and hits the same `user-attachments` upload endpoint the web UI uses. Result: genuine `github.com/user-attachments/assets/<uuid>` URLs, identical to drag-drop — including the security property that the asset inherits the repo's visibility (private repo → private asset). Works for videos/MP4, not just images.
+**Use `scripts/upload-to-pr.sh`.** It handles the whole flow correctly: verifies the `gh-image` session token, uploads via `gh image` to GitHub user-attachments (no git commit), extracts the returned URL, emits the right embed form per file type (bare URL for MP4/WebM/MOV — which is what auto-renders as a video player — or markdown image syntax for GIF/PNG/JPG), fetches the existing PR body, prepends the embed while preserving every byte of existing content, and refuses to re-run against a body that already has a user-attachments URL (use `--replace` to override). Modes: default (upload + edit body), `--upload-only` (upload + print URL, skip body edit), `--dry-run` (validate env without uploading).
+
+If `gh-image` itself is unavailable and you genuinely can't install it, fall back in this order (each worse than the last): `gh release create + upload` for a tagged deliverable, a personal `username/pr-demos` repo on your own account. Do **not** use `gh gist` (rejects binaries) and do **not** commit to the PR branch.
+
+**PR body edit hygiene** — when you edit the PR description, edit only the description. Never land a commit on the branch as a side effect. Description edits are reversible with another `gh pr edit`; pushed commits are not.
+
+### Phase 7 — Clean up repo-level video artifacts
+
+After every selected delivery channel has succeeded, delete this video's artifacts from the repo working tree. Webreel outputs are hefty (1–4 MB per MP4 plus raw frames and timelines) and accumulating them across sessions is pure waste — the deliverable is already on GitHub user-attachments, in a Jira comment, or in `~/Downloads/` per the user's choices.
+
+Delete **only the current video's** files; leave other videos in the same folders untouched (they may belong to in-flight work or prior sessions). Paths to remove for `<video-name>`:
 
 ```bash
-# One-time install
-gh extension install drogers0/gh-image
-
-# Upload (prints a markdown reference; the URL inside is what you embed)
-gh image --repo <owner>/<repo> videos/foo.mp4
-# => ![foo.mp4](https://github.com/user-attachments/assets/<uuid>)
+rm -f videos/<video-name>.mp4 videos/<video-name>.png
+rm -f .webreel/raw/<video-name>.mp4
+rm -f .webreel/timelines/<video-name>.timeline.json .webreel/timelines/<video-name>.timeline.json.bak
 ```
 
-Take the URL and embed it in the PR body. For videos on GitHub, a bare URL on its own line auto-renders as a playable `<video>` — no `<video>` tag or `<img>` wrapper needed:
+Do **not** delete `webreel.config.json` — it's the declarative source that lets the user re-record later. Do **not** delete other videos' artifacts. Do **not** delete anything before all chosen delivery channels have confirmed success (an upload that failed mid-flight means the only copy is still on disk).
 
-```
-Here's the demo:
-
-https://github.com/user-attachments/assets/<uuid>
-```
-
-Note: the URL will return 404 on raw `curl` — these URLs are session-gated. They resolve correctly when rendered by github.com's authenticated pipeline. Don't verify via curl — view the PR in a browser to confirm rendering.
-
-**Fallbacks if `gh-image` is unavailable (keep in mind, all are worse):**
-
-- **GitHub Release asset** — `gh release create + upload`. Permanent public URL. Creates a release on the Releases page (draft releases are hidden from the public list but still discoverable by maintainers). Use only when a release makes sense for the PR's context (e.g., tagged deliverable).
-- **Personal assets repo** — your own `username/pr-demos`-style repo on your account. Still a git commit, but on *your* account, not a shared one. Prefer release-asset over branch-commit even there.
-- **`gh gist` is NOT an option** — `gh gist create` rejects binary files with "binary file not supported". Text-only.
-
-Under no circumstances commit the asset to the PR's branch or the main repo.
-
-**What to do when you hit a blocker** — if the Contents API returns `409 Repository rule violations found ... Commits must have verified signatures`, that is a **signal to stop, not a signal to sign-and-commit**. It means the repo is specifically configured to reject programmatic file uploads to branches. Back off to a non-branch hosting path (gist, release, user drag-drop) and report the constraint to the user. Never work around signed-commit rules by pushing signed commits that include demo assets.
-
-**PR body edit hygiene** — when you *do* edit a PR description, edit only the description. Never land a commit on the branch "to host the asset" or "to update the commit that created the asset" as a side effect. Description edits are reversible with one more `gh pr edit`; pushed commits are not.
+Mention the cleanup in the final summary so the user knows the repo is clean. If the user declined all upload channels and only wanted "Save to `~/Downloads`", still delete the `videos/` copy after the copy succeeds — the Downloads copy IS the deliverable now, and the repo copy is pure duplication.
 
 ## Common pitfalls
 
@@ -298,10 +330,27 @@ Under no circumstances commit the asset to the PR's branch or the main repo.
 - **Branch drift** — the dev server reflects on-disk code. Confirm the running code has the fix via Chrome DevTools MCP before recording.
 - **Over-narrating** — demos are short. Pick 3–5 moments that tell the story; skip assertions that add no visual signal.
 
+## When things go wrong
+
+The cheap first move for any failure is `references/troubleshooting.md` — a symptom → cause → fix lookup. If webreel times out on `waitFor`, if `gh image` prints a URL that 404s, if the thumbnail shows a loading state, if a selector fails, that file has the fix. Add new entries when you hit a symptom that isn't there.
+
+Before recording, run the pre-flight scripts (below) — they catch the most common environment issues (wrong URL, SPA routing, stale token) in under 5 seconds.
+
 ## Files
 
+### References (read as needed)
+- [references/troubleshooting.md](references/troubleshooting.md) — symptom → cause → fix table; check here first when something breaks
+- [references/common-interactions.md](references/common-interactions.md) — recipe book for webreel step patterns (hover-and-click, typing, drag, modals, etc.)
+- [references/iteration-economy.md](references/iteration-economy.md) — cheapest-tool-first decision tree; when to re-composite vs re-record
 - [references/selector-strategies.md](references/selector-strategies.md) — selector priority, antipatterns, collision detection
 - [references/pom-to-webreel.md](references/pom-to-webreel.md) — Playwright POM → webreel step translation table
 - [references/research-sources.md](references/research-sources.md) — git / PR / Jira MCP / catalog-API recipes
-- [scripts/ensure-webreel.sh](scripts/ensure-webreel.sh) — CLI availability check + optional global install
+
+### Scripts (run directly)
+- [scripts/ensure-webreel.sh](scripts/ensure-webreel.sh) — webreel CLI + dependencies availability check + install
+- [scripts/preflight-check.sh](scripts/preflight-check.sh) — validate URL, dev server, gh-image token, disk before recording
+- [scripts/list-routes.py](scripts/list-routes.py) — enumerate and **resolve** DAP frontend routes into copy-pastable URLs (handles any section's convention: inline `const X = {...}` or external enum)
+- [scripts/extend-timeline.py](scripts/extend-timeline.py) — stretch caption HUD dwell to ≥2500 ms before re-compositing
+- [scripts/validate-caption-dwell.py](scripts/validate-caption-dwell.py) — check caption dwell budget against word-count rules
+- [scripts/upload-to-pr.sh](scripts/upload-to-pr.sh) — end-to-end upload via `gh image` + prepend embed to PR body (preserves existing content, idempotent guard against duplicates)
 

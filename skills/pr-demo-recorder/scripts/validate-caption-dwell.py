@@ -15,8 +15,8 @@ until the next F13 or end-of-video. It flags any caption under its required budg
 
 Budget rules (matching SKILL.md Phase 4 guidance):
     - Action captions (2–4 words)      → need ≥1500 ms post-caption dwell
-    - Reveal captions (5–9 words)      → need ≥2500 ms post-caption dwell
-    - Long reveal captions (>9 words)  → need ≥3000 ms post-caption dwell
+    - Reveal captions (5–9 words)      → need ≥3000 ms post-caption dwell
+    - Long reveal captions (>9 words)  → need ≥3500 ms post-caption dwell
 
 Word count determines which budget applies. Override with --target-ms to check a
 uniform budget for all captions.
@@ -24,7 +24,7 @@ uniform budget for all captions.
 Usage
 -----
     validate-caption-dwell.py <config.json>                    # per-word-count budgets
-    validate-caption-dwell.py <config.json> --target-ms 2500   # uniform budget
+    validate-caption-dwell.py <config.json> --target-ms 3000   # uniform budget
     validate-caption-dwell.py <config.json> --verbose          # show every caption + budget
 """
 
@@ -37,8 +37,8 @@ from pathlib import Path
 
 # Default per-word-count budgets (ms)
 BUDGET_ACTION_MS = 1500    # 2–4 words
-BUDGET_REVEAL_MS = 2500    # 5–9 words
-BUDGET_LONG_MS = 3000      # >9 words
+BUDGET_REVEAL_MS = 3000    # 5–9 words
+BUDGET_LONG_MS = 3500      # >9 words
 
 
 def word_count(label: str) -> int:

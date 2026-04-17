@@ -85,7 +85,7 @@ Then record.
 open videos/<name>.png
 
 # 2. Extend caption dwell to readable length
-scripts/extend-timeline.py <name> --target-ms 2500
+scripts/extend-timeline.py <name> --target-ms 3000
 
 # 3. Re-composite
 npx webreel composite <name>

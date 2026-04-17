@@ -18,7 +18,7 @@ starts. Then re-composite — no re-record required.
 
 Usage
 -----
-    extend-timeline.py <video-name> [--target-ms 2500] [--config webreel.config.json]
+    extend-timeline.py <video-name> [--target-ms 3000] [--config webreel.config.json]
 
 The script locates the timeline at:
     <config-dir>/.webreel/timelines/<video-name>.timeline.json
@@ -112,8 +112,8 @@ def locate_timeline(config_path: Path, video_name: str) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("video_name", help="Video name as defined in webreel.config.json")
-    parser.add_argument("--target-ms", type=int, default=2500,
-                        help="Target caption duration in milliseconds (default: 2500)")
+    parser.add_argument("--target-ms", type=int, default=3000,
+                        help="Target caption duration in milliseconds (default: 3000)")
     parser.add_argument("--config", default="webreel.config.json",
                         help="Path to webreel.config.json (default: ./webreel.config.json)")
     parser.add_argument("--fps", type=int, default=None,

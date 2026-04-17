@@ -115,13 +115,13 @@ Write `webreel.config.json` (one file can hold multiple named videos via the `vi
    { "action": "pause", "ms": 600 }
    ```
 
-2. **Timeline-extend pass** — webreel writes a timeline JSON to `.webreel/timelines/<video-name>.timeline.json` with a `frames` array, one entry per recorded frame. Each frame has an optional `hud: { labels: [...] }`. Native recording populates ~48 consecutive frames per caption (~800 ms at 60 fps). Walk the timeline, detect each run of contiguous HUD frames, and **copy the label across subsequent frames up to the target duration, or until the next HUD run starts, whichever comes first**. Default target: **2500 ms (150 frames at 60 fps)** — verified readable for 6–10 word captions without bloating runtime. Bump to 3000–4500 ms only for verbose labels (>12 words). This stretches the caption's visibility without re-encoding or re-recording. Implementation: a Python script that backs up the timeline to `.json.bak` on first run, always reads from the backup for idempotency, and writes the extended timeline back.
+2. **Timeline-extend pass** — webreel writes a timeline JSON to `.webreel/timelines/<video-name>.timeline.json` with a `frames` array, one entry per recorded frame. Each frame has an optional `hud: { labels: [...] }`. Native recording populates ~48 consecutive frames per caption (~800 ms at 60 fps). Walk the timeline, detect each run of contiguous HUD frames, and **copy the label across subsequent frames up to the target duration, or until the next HUD run starts, whichever comes first**. Default target: **3000 ms (180 frames at 60 fps)** — verified readable for 6–10 word captions without bloating runtime. Bump to 3500–4500 ms only for verbose labels (>12 words). This stretches the caption's visibility without re-encoding or re-recording. Implementation: a Python script that backs up the timeline to `.json.bak` on first run, always reads from the backup for idempotency, and writes the extended timeline back.
 
 3. **Composite pass** — `npx webreel composite <video-name>`. Re-runs only the overlay compositor using the modified timeline + the raw frames (already stored under `.webreel/raw/`). Takes ~5–10 s per video instead of 30–60 s for a full re-record. This is the step that actually produces the user-visible MP4 with the extended captions burned in.
 
 **Why this is the right pattern:**
 - Captions appear during the cursor movement and click — exactly what the user originally asked for — because the timeline extension overlaps the caption with the post-`key` action steps.
-- 2500 ms is the sweet spot: long enough to read, short enough to keep the video moving.
+- 3000 ms is the sweet spot: long enough to read comfortably (covers 6–10-word captions), short enough to keep the video moving.
 - No ffmpeg post-processing, no repeated recording, no reliance on docs claims that don't hold in 0.1.4.
 
 **Prove the value, don't just click.** After a beat's click reveals content, follow with **short `moveTo` hovers (700–1000 ms each) over the specific values that demonstrate the fix**. The click tells "what I did"; the hovers show "what this produced." Keep hover dwell short — once the cursor lands and the viewer registers the value for ~1 s, move on. Long hover dwell adds no signal.
@@ -130,7 +130,7 @@ Write `webreel.config.json` (one file can hold multiple named videos via the `vi
 
 Captions are the spine of the demo. Vague labels like "Task input we passed in" waste screen time. Every caption must satisfy these rules:
 
-1. **Length: ≤9 words, one line.** Any longer and it wraps at 1600px wide or can't be read in the 2500 ms window. A 6-word caption is a great target; 9 words is the hard ceiling. If your draft is longer, cut qualifiers before shortening vocabulary.
+1. **Length: ≤9 words, one line.** Any longer and it wraps at 1600px wide or can't be read in the 3000 ms window. A 6-word caption is a great target; 9 words is the hard ceiling. If your draft is longer, cut qualifiers before shortening vocabulary.
 2. **Pick a style based on PR type:**
    - **Bug-fix PRs → Before→After contrast** (changelog voice). Use an arrow (`→`) to make the delta explicit. The viewer is typically a reviewer who needs to see the fix.
    - **New-feature PRs → Keynote reveal** (Apple-keynote voice). Declarative, present-tense, benefit-forward. The viewer wants the capability, not the bug story.
@@ -244,12 +244,12 @@ Captions go on the "first visible 'after' beat" row for each fix. Fixes that sha
 
 **Self-check for each caption:** "If the old (broken) code were running at this exact beat, what would the viewer see that's different from the current frame?" If the answer is "nothing different," the caption does not belong here — move it to the beat where the answer becomes concrete.
 
-### Timing guarantee: each caption needs ≥2500 ms of post-caption dwell
+### Timing guarantee: each caption needs ≥3000 ms of post-caption dwell
 
-Because the timeline-extend pass caps each caption at the NEXT caption's start time, a caption whose `key` step is followed by <2500 ms of steps (cursor travel + clicks + pauses) before the next `key` step gets truncated. Engineer the config so:
+Because the timeline-extend pass caps each caption at the NEXT caption's start time, a caption whose `key` step is followed by <3000 ms of steps (cursor travel + clicks + pauses) before the next `key` step gets truncated. Engineer the config so:
 
-- Action captions (2–4 words): the following `click` + `wait` + `pause` total ≥1500 ms. Action captions are short — they don't need the full 2500 ms.
-- Reveal captions (5–9 words): the following `moveTo`s / `pause`s total ≥2500 ms. If you've got 3 value hovers at ~700 ms each, that's 2100 ms + a 500 ms trailing pause = 2600 ms ✓.
+- Action captions (2–4 words): the following `click` + `wait` + `pause` total ≥1500 ms. Action captions are short — they don't need the full 3000 ms.
+- Reveal captions (5–9 words): the following `moveTo`s / `pause`s total ≥3000 ms. If you've got 3 value hovers at ~800 ms each, that's 2400 ms + a 700 ms trailing pause = 3100 ms ✓.
 
 The Python extend-script caps at the next HUD run, so over-allocating dwell is harmless — under-allocating truncates silently.
 
@@ -350,7 +350,7 @@ Before recording, run the pre-flight scripts (below) — they catch the most com
 - [scripts/ensure-webreel.sh](scripts/ensure-webreel.sh) — webreel CLI + dependencies availability check + install
 - [scripts/preflight-check.sh](scripts/preflight-check.sh) — validate URL, dev server, gh-image token, disk before recording
 - [scripts/list-routes.py](scripts/list-routes.py) — enumerate and **resolve** DAP frontend routes into copy-pastable URLs (handles any section's convention: inline `const X = {...}` or external enum)
-- [scripts/extend-timeline.py](scripts/extend-timeline.py) — stretch caption HUD dwell to ≥2500 ms before re-compositing
+- [scripts/extend-timeline.py](scripts/extend-timeline.py) — stretch caption HUD dwell to ≥3000 ms before re-compositing
 - [scripts/validate-caption-dwell.py](scripts/validate-caption-dwell.py) — check caption dwell budget against word-count rules
 - [scripts/upload-to-pr.sh](scripts/upload-to-pr.sh) — end-to-end upload via `gh image` + prepend embed to PR body (preserves existing content, idempotent guard against duplicates)
 

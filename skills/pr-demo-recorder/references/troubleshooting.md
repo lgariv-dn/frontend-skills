@@ -70,18 +70,18 @@ webreel 0.1.4's `pressKey` implementation calls `showHud` → sleep 800 ms → `
 
 **Fix:** two-pass workflow (documented in SKILL.md "Phase 4"):
 1. Record normally with `{ "action": "key", "key": "F13", "label": "…" }` beats.
-2. Run `scripts/extend-timeline.py` to stretch each HUD run to 2500 ms.
+2. Run `scripts/extend-timeline.py` to stretch each HUD run to 3000 ms.
 3. Re-composite (not re-record): `npx webreel composite <name>`.
 
 ---
 
 ## Symptom: Caption got truncated (cut off by next caption)
 
-`extend-timeline.py` caps each caption's extension at the start of the next HUD run. If your action steps between two `key`s total less than the target dwell (2500 ms for reveal, 1500 ms for action), the first caption gets truncated.
+`extend-timeline.py` caps each caption's extension at the start of the next HUD run. If your action steps between two `key`s total less than the target dwell (3000 ms for reveal, 1500 ms for action), the first caption gets truncated.
 
 **Check:** run `scripts/validate-caption-dwell.py <config>` before recording.
 
-**Fix:** add a trailing `{ "action": "pause", "ms": 600 }` or bump hover delays. Keep each reveal-caption window ≥ 2500 ms, each action-caption window ≥ 1500 ms.
+**Fix:** add a trailing `{ "action": "pause", "ms": 600 }` or bump hover delays. Keep each reveal-caption window ≥ 3000 ms, each action-caption window ≥ 1500 ms.
 
 ---
 

@@ -97,6 +97,40 @@ webreel 0.1.4's `pressKey` implementation calls `showHud` → sleep 800 ms → `
 
 ---
 
+## Symptom: `Image to composite must have same dimensions or smaller` + ffmpeg hangs at 0% CPU
+
+webreel's compositor passes each frame's HUD caption to `sharp.composite` as an overlay. If the HUD PNG is wider (or taller) than the base frame, sharp throws this error. The compositor's PNG-feeding loop then errors out mid-stream, leaving the companion ffmpeg invocation stuck waiting for pipe input that never arrives — ffmpeg sits at 0% CPU indefinitely, log stream goes quiet, and nothing appears to be wrong until you notice the elapsed time.
+
+### Cause — HUD PNG is wider than the viewport
+
+At `DEFAULT_HUD_THEME.fontSize=56` and the estimator's ~34 px/char, any single caption longer than ~47 chars overflows a 1600×900 viewport. The fork's `@lgariv/webreel-core ≥ 0.1.4-beta-20260418T145700Z` clamps the HUD via an SVG `viewBox`, so oversized captions now shrink-to-fit instead of crashing. Older webreel versions still have the bug.
+
+**Check:**
+```bash
+webreel --version
+# If < 0.1.4-beta-20260418T145700Z, the clamp isn't there.
+# Also inspect the longest caption in your config:
+jq -r '.videos[].steps[] | select(.action=="key") | .label' webreel.config.json | awk '{print length, $0}'
+```
+
+**Fix — ask the user via `AskUserQuestion` and act on the answer.** The right recovery depends on which constraint they want to relax, so do not guess. Present these options (recommend whichever seems closest given the diagnosis above):
+
+```
+Q: "The HUD caption overflowed the frame and the compositor hung. Which fix do you want?"
+  1. Upgrade webreel to the patched fork
+     → `npm install -g @lgariv/webreel@latest` — auto-shrinks oversized HUDs.
+  2. Shorten the offending caption(s) to ≤ 7 words AND ≤ 45 chars
+     → edit webreel.config.json, re-validate, re-record.
+  3. Bump the video viewport to 1920×1080 (or wider)
+     → edit webreel.config.json `viewport`, re-record.
+```
+
+After they pick, kill any hung ffmpeg + webreel processes (`pkill -9 -f "ffmpeg.*composed"` and `pkill -9 -f "webreel record"`), clean stale artifacts (`rm -f .webreel/raw/<name>.mp4 .webreel/timelines/<name>.*`), apply the chosen fix, and re-run `webreel record`.
+
+Do **not** silently pick a fix on the user's behalf — each option has different trade-offs (caption readability vs. iteration time vs. composition framing), and the wrong pick wastes another recording cycle.
+
+---
+
 ## Symptom: Recording crashes with `TypeError: Cannot read properties of null (reading 'get')`
 
 Inside a timeline-transform script, `frame.hud` is `null` (not `{}`) for frames with no caption. Code that assumes it's always a dict throws.

@@ -17,8 +17,8 @@ bash dap-workspace/.claude/skills/pr-demo-recorder/scripts/ensure-webreel.sh
 
 The script verifies four things in order and exits non-zero at the first failure:
 
-1. **webreel CLI** — installed globally via `npm` or project-local via `npx`. If missing, prompts to run `npm install -g webreel`.
-2. **Companion webreel Claude skill** at `~/.claude/skills/webreel/`. If missing, offers to fetch it from `vercel-labs/webreel`.
+1. **webreel CLI** — installed globally via `npm` or project-local via `npx`. If missing, prompts to run `npm install -g @lgariv/webreel` (a scoped fork of vercel-labs/webreel that adds cinematic autozoom; the binary is still invoked as `webreel`).
+2. **Companion webreel Claude skill** at `~/.claude/skills/webreel/`. If missing, offers to fetch it from `lgariv-dn/webreel` (the same fork — its companion skill documents the `autoZoom` field).
 3. **`gh` CLI** — required for PR metadata and asset upload. If missing, the script **prints install instructions and exits** (user must install + authenticate before retrying). There is no auto-install for `gh` because it's an OS-level package manager install.
 4. **`gh-image` extension** (`drogers0/gh-image`) — required to upload demo videos to GitHub user-attachments programmatically. If missing, **auto-installs silently** via `gh extension install drogers0/gh-image`. If install fails, the script exits non-zero.
 
@@ -62,7 +62,12 @@ Never assume. Ask about every non-obvious decision. Batch 1–3 related question
 4. **Environment** — confirm dev server is on the fix branch. If `git branch --show-current` doesn't match the fix branch, flag it and ask whether to switch.
 5. **Viewport + format** — desktop preset (`1920×1080`, `1600×900`, `macbook-pro`)? Output: MP4 / GIF / WebM? Duration target (short <10s / standard 15–30s / detailed 30–60s)?
 6. **Captions / HUD** — include keystroke overlays, custom cursor theme, or annotation callouts?
-7. **Delivery** — ALWAYS ask as a **multi-select `AskUserQuestion`** (set `multiSelect: true`) with exactly these three options — the user may pick any combination:
+7. **Autozoom** — the `@lgariv/webreel` fork ships an opt-in cinematic zoom that eases the camera into each interaction target, holds through the action, and releases to the full viewport. It dramatically improves readability of small UI (form fields, icon buttons, dropdown options) and gives the video a produced, Cursor-walkthrough-style feel. Ask the user:
+   - **If the plan is ONE combined video** — use a **single-select `AskUserQuestion`** with exactly two options: `Enable autozoom` (recommended when the demo hits any form input, dropdown, small icon button, or modal; the fork's default tuning works well — no config needed) and `Disable autozoom` (recommended when the demo is mostly large UI areas, full-page content, or long scrolls where a zoomed frame would crop important context). Pick the first option by default in the `AskUserQuestion`'s list if any action target is <40% of the viewport; pick the second default if the flow is dominated by full-page views.
+   - **If the plan is MULTIPLE videos** — use a **multi-select `AskUserQuestion`** (`multiSelect: true`) listing every planned video by its `name` with a short one-line description, and let the user pick which subset should have autozoom enabled. Videos NOT selected stay on the default (no autozoom). Phrase the question as: *"Which of these videos should use the cinematic autozoom? (uncheck any that are mostly full-page / large-UI flows.)"*
+
+   When autozoom is enabled for a video, set `"autoZoom": true` at the video level in `webreel.config.json`. For fine control, an object can override defaults (`approachS`, `sessionGapS`, `minZoomRatio`, etc.) — but default to `true` unless the user explicitly asks to tune.
+8. **Delivery** — ALWAYS ask as a **multi-select `AskUserQuestion`** (set `multiSelect: true`) with exactly these three options — the user may pick any combination:
    - **Prepend to GitHub PR description** — upload via `gh image`, then `gh pr edit` to prepend the embed while preserving every byte of existing body content.
    - **Post as a comment on the linked Jira ticket** — upload once (reuse the `gh image` URL if already uploaded; otherwise upload separately for Jira) and post a comment on the Jira issue from branch/title (e.g. `AR-58199`) via the Atlassian MCP `addCommentToJiraIssue`.
    - **Save to the user's Downloads folder** — copy the MP4 (and thumbnail PNG if present) to `~/Downloads/` and report the absolute paths. No network upload.
@@ -103,6 +108,24 @@ Write `webreel.config.json` (one file can hold multiple named videos via the `vi
 
 **Pacing defaults**: `defaultDelay: 400`, 600–900ms `pause` between actions, 1000–1200ms at demo-critical moments (drill-back, status reveal, before/after state changes). `fps: 60`, `quality: 85`.
 
+**Autozoom (`@lgariv/webreel` fork)**: for every video the user opted into autozoom (see Phase 2 item 7), add `"autoZoom": true` as a sibling of `url` / `viewport` / `steps` inside the video's object in `webreel.config.json`. Example:
+
+```jsonc
+"videos": {
+  "my-video": {
+    "url": "...",
+    "viewport": { "width": 1920, "height": 1080 },
+    "waitFor": ".app",
+    "autoZoom": true,          // ← opt in
+    "steps": [ /* ... */ ]
+  }
+}
+```
+
+- `true` uses the fork's tuned defaults (approach 0.5 s, release 0.5 s, minZoomRatio 0.6, sessionGapS 4.0) — these match Cursor's documentation walkthrough feel on form-style UI.
+- The fork also runs a `MutationObserver` during click/drag steps so dropdowns, modals, and tooltips that open in response to a click get framed with their trigger in one shot (no lateral pan to re-center on the menu option).
+- Use an object only when the user explicitly asks to tune: e.g. `{ "enabled": true, "minZoomRatio": 0.75 }` to cap peak zoom at ~1.33× for ultra-wide UI, or `{ "enabled": true, "sessionGapS": 2.5 }` to force more rest-at-wide between unrelated actions. Consult the fork's companion skill at `~/.claude/skills/webreel/SKILL.md` (already fetched by `ensure-webreel.sh`) for the full knob table.
+
 **Captions only render on `key` action steps — and last only 800 ms unless you extend them.** Despite what the webreel docs suggest, in webreel 0.1.4 the HUD caption is drawn only when `pressKey` fires, and `pressKey` calls `showHud` → sleep 800 ms → `hideHud` — hardcoded. `label` on `click`, `moveTo`, `pause` etc. is **silently ignored at composite time**. A `delay` on the `key` step doesn't extend HUD visibility either — it only delays the next step. So the native output of a `key F13 + label "foo"` step gives you a caption visible for ~0.8 s, which is unreadable.
 
 **Use the two-pass workflow: record, then extend-and-composite.**
@@ -130,7 +153,11 @@ Write `webreel.config.json` (one file can hold multiple named videos via the `vi
 
 Captions are the spine of the demo. Vague labels like "Task input we passed in" waste screen time. Every caption must satisfy these rules:
 
-1. **Length: ≤9 words, one line.** Any longer and it wraps at 1600px wide or can't be read in the 3000 ms window. A 6-word caption is a great target; 9 words is the hard ceiling. If your draft is longer, cut qualifiers before shortening vocabulary.
+1. **Length: ≤7 words AND ≤45 characters, one line.** Both limits are load-bearing and both must hold:
+   - Words drive read time — >7 words is unreadable in the 3000 ms window.
+   - Characters drive HUD pixel width. At `DEFAULT_HUD_THEME.fontSize=56`, each caption char is ~34 px. A 50-char caption is ~1680 px wide — already larger than a 1600×900 frame. The `@lgariv/webreel-core` clamp (≥ `0.1.4-beta-20260418T145700Z`) now shrinks oversized HUDs to fit via SVG `viewBox`, but the shrunk text reads worse than a caption written short to begin with. On older webreel without the clamp, oversized HUDs crash the compositor and hang ffmpeg — see `references/troubleshooting.md § Image to composite`.
+
+   **5–6 words / ~30–40 chars is the sweet spot; 7 words / 45 chars is the hard ceiling.** If your draft exceeds either, cut qualifiers before shortening vocabulary. Example: "Branches nest under the split, in execution order." (50 ch, 8 w) → "Branches nest under the split." (30 ch, 5 w) — the hovers below already demonstrate the order nuance; the caption doesn't need to carry it.
 2. **Pick a style based on PR type:**
    - **Bug-fix PRs → Before→After contrast** (changelog voice). Use an arrow (`→`) to make the delta explicit. The viewer is typically a reviewer who needs to see the fix.
    - **New-feature PRs → Keynote reveal** (Apple-keynote voice). Declarative, present-tense, benefit-forward. The viewer wants the capability, not the bug story.

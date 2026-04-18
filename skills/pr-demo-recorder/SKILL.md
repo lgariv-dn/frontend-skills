@@ -149,6 +149,15 @@ Write `webreel.config.json` (one file can hold multiple named videos via the `vi
 
 **Prove the value, don't just click.** After a beat's click reveals content, follow with **short `moveTo` hovers (700–1000 ms each) over the specific values that demonstrate the fix**. The click tells "what I did"; the hovers show "what this produced." Keep hover dwell short — once the cursor lands and the viewer registers the value for ~1 s, move on. Long hover dwell adds no signal.
 
+**Hover COUNT is as important as hover duration — one hover per distinct evidence point, not one per visible element.** Walking the cursor through sibling items in a tight cluster ("Branch 1 → Branch 2 → child" in a 200-px-tall sidebar) is a time tax when each item carries the same evidence the caption just announced. The viewer absorbs the tree shape at a glance once the caption frames it; pointing at every row replays information they've already read.
+
+Budget per reveal caption:
+- **One hover** to name the finding the caption describes (e.g., hover the nested branch that proves "nested under the split").
+- **Optionally a second hover** if — and only if — it names a DIFFERENT fact the caption bundles together. Example: "Icons and expansion survive drill-back." genuinely combines two fixes, so hovering the status icon (proof of icons) AND the nested grandchild (proof of expansion) is legitimate.
+- **Three or more hovers on siblings in <200 px of viewport space is a red flag.** Collapse to the one hover that tells the viewer something they can't read from the caption plus the still frame. If you can't name a distinct fact each extra hover reveals, cut it.
+
+**Self-test before adding each extra hover:** "If I removed this hover, would the viewer lose evidence, or just lose a repeat of the caption?" If the latter, cut it. Extra hovers inflate runtime and train the viewer to tune out — the demo feels slow and the punchline lands softer.
+
 ### Caption writing — phrase every label on purpose
 
 Captions are the spine of the demo. Vague labels like "Task input we passed in" waste screen time. Every caption must satisfy these rules:

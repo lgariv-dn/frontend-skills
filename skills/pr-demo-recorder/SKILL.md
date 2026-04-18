@@ -147,17 +147,37 @@ Mechanism: autozoom generates a zoom event for each `moveTo` / `hover` / `click`
 { "action": "pause",  "ms": 2700 }
 ```
 
-✅ **Right** (camera zooms in first, caption appears on zoomed evidence):
+✅ **Right** (camera zooms in first, caption appears as zoom completes — no dead time):
 ```jsonc
-{ "action": "moveTo", "selector": "#sidebar [data-value='branch-1']" },
-{ "action": "pause",  "ms": 800 },                                      // let the camera settle
-{ "action": "key",    "key": "F13", "label": "Branches nested under the split." },
-{ "action": "pause",  "ms": 2400 }                                      // caption dwell budget
+{
+  "defaultDelay": 0,                                                    // strip all inter-step padding
+  "videos": {
+    "my-video": {
+      "autoZoom": { "enabled": true, "sessionGapS": 6.0 },
+      "steps": [
+        /* ... */
+        { "action": "moveTo", "selector": "#sidebar [data-value='branch-1']", "delay": 0 },
+        { "action": "key",    "key": "F13", "label": "Branches nested under the split." },
+        { "action": "pause",  "ms": 2400 }                              // caption dwell budget
+      ]
+    }
+  }
+}
 ```
 
-The 800 ms post-`moveTo` pause is the critical piece — it covers the 500 ms approach plus a small margin so the camera is unambiguously settled before the HUD appears. The remaining dwell (2400 ms) plus the `key` step's own 800 ms HUD window plus any trailing hovers compose the full caption visibility (extend-timeline stretches to 3000 ms).
+**Three pieces, all required:**
 
-For caption 2 of a two-caption demo, apply the same rule: whatever `moveTo` most naturally triggers the zoom into the second evidence region must come BEFORE the `key`, with an 800 ms pause in between. In practice this pairs cleanly with the "one hover to name the finding" rule: that single hover *is* the `moveTo` that triggers the zoom. Put the caption right after it.
+1. **Top-level `defaultDelay: 0`** — kills the implicit 400 ms padding webreel inserts after every step. Without this, a 400 ms gap opens up after the `moveTo` that can't be eliminated by any per-step setting.
+2. **`"delay": 0` on the `moveTo` step** — overrides any step-level delay that would otherwise run AFTER the moveTo completes and before the next step starts.
+3. **No `pause` step between `moveTo` and `key`** — any pause here directly adds dead-time to "camera settled but caption hasn't fired yet."
+
+With all three, the HUD fires essentially the instant the cursor arrives at the target. Autozoom's approach settles 0.15 s **before** cursor arrival, so the caption appears ~150 ms after the zoom visually completes — close enough that the viewer perceives it as one motion: "camera arrives AND caption appears," no dead beat in between. Adding even a 300 ms pause here opens a visible gap; an 800 ms pause produces a full second of dead zoomed-but-silent frame before the HUD appears, which the viewer reads as "why are we waiting?"
+
+**Caveats of `defaultDelay: 0`:**
+- Every inter-step beat becomes tight. If you rely on implicit padding between, say, `click` and a subsequent `wait` for rendered content, the flow may race. Add **explicit `pause` steps** wherever the UI genuinely needs time to react (post-drill-in, post-route-change, modal-open animations). Think of pauses as a budget you now allocate manually instead of getting implicitly.
+- Total video runtime drops noticeably — my AR-58199 demo fell from ~25 s to ~15 s after switching to `defaultDelay: 0`. This is a feature, not a bug: dead time was being padded into the recording even when nothing was happening.
+
+For caption 2 of a two-caption demo, apply the same pattern: `moveTo (delay: 0) → key → pause dwell`. In practice this pairs cleanly with the "one hover to name the finding" rule — that single hover *is* the `moveTo` that triggers the zoom, and the `key` follows immediately after.
 
 **Action captions (as opposed to reveal captions) don't need this ordering** — a 2-word imperative like "Click Start" is short enough that it's readable during the approach-phase without the reader noticing. Only reveal captions (5–7 words naming a fix) are long enough that the ordering matters.
 

@@ -8,7 +8,7 @@ set -euo pipefail
 
 WEBREEL_SKILL_DIR="$HOME/.claude/skills/webreel"
 WEBREEL_SKILL_FILES=(SKILL.md examples.md steps-reference.md)
-WEBREEL_SKILL_RAW_BASE="https://raw.githubusercontent.com/vercel-labs/webreel/main/skills/webreel"
+WEBREEL_SKILL_RAW_BASE="https://raw.githubusercontent.com/lgariv-dn/webreel/feat/autozoom/skills/webreel"
 GH_IMAGE_EXT="drogers0/gh-image"
 
 # ── 1. CLI ─────────────────────────────────────────────────────────────────
@@ -24,14 +24,14 @@ fi
 
 if [[ -z "$cli_source" ]]; then
   echo "webreel CLI not found on PATH or in the local node_modules."
-  printf "Install globally via 'npm install -g webreel'? [y/N] "
+  printf "Install globally via 'npm install -g @lgariv/webreel'? [y/N] "
   read -r reply
   if [[ "$reply" =~ ^[Yy]$ ]]; then
-    npm install -g webreel
+    npm install -g @lgariv/webreel
     cli_version="$(webreel --version 2>/dev/null || echo installed)"
     cli_source="global"
   else
-    echo "Aborted. Install manually or add 'webreel' to the project devDependencies."
+    echo "Aborted. Install manually or add '@lgariv/webreel' to the project devDependencies."
     exit 1
   fi
 fi
@@ -47,7 +47,7 @@ if [[ ${#skill_missing[@]} -eq 0 ]]; then
   echo "webreel companion skill: installed at $WEBREEL_SKILL_DIR"
 else
   echo "webreel companion skill: missing ${#skill_missing[@]}/${#WEBREEL_SKILL_FILES[@]} file(s) at $WEBREEL_SKILL_DIR"
-  printf "Fetch the skill from vercel-labs/webreel on GitHub? [y/N] "
+  printf "Fetch the skill from lgariv-dn/webreel on GitHub? [y/N] "
   read -r reply
   if [[ "$reply" =~ ^[Yy]$ ]]; then
     mkdir -p "$WEBREEL_SKILL_DIR"

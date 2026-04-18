@@ -109,7 +109,7 @@ Ark Select and similar headless libraries render the open options into a **porta
 
 ## Scroll the page or a specific component ✅
 
-Reference: the official [`examples/page-scrolling`](https://github.com/vercel-labs/webreel/tree/main/examples/page-scrolling) config demonstrates every pattern below — a blog-post layout that scrolls the page, scrolls back up, and scrolls a sidebar container internally.
+Reference: the [`examples/page-scrolling`](https://github.com/lgariv-dn/webreel/tree/main/examples/page-scrolling) config demonstrates every pattern below — a blog-post layout that scrolls the page, scrolls back up, and scrolls a sidebar container internally. An `examples/autozoom` config in the same repo demonstrates the cinematic-zoom behavior on a form (name, email, role dropdown, save).
 
 ### Full-page (window) scroll — no `selector`
 

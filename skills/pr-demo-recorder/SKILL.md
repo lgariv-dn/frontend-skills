@@ -134,6 +134,33 @@ Write `webreel.config.json` (one file can hold multiple named videos via the `vi
 
 **Alternative:** tighten the flow itself. Reducing the post-drill-in `pause` from ~1200 ms → ~600 ms, or dropping the explicit `hover` before a drill click (if the previous `moveTo` already put the cursor on the row and CSS `:hover` fires from the mouse position), can bring the gap under 4.0 s without any config knob. Faster navigation means fewer pauses means naturally merged sessions. Prefer this over `sessionGapS` tuning when the flow's pacing was already too slow anyway.
 
+**Caption-after-zoom ordering — reveal captions must fire AFTER the camera settles, not before.** When autozoom is on, the camera needs ~500 ms to approach from wide → target crop before it "arrives" at the zoomed-in view. If the reveal `key` step fires while the camera is still wide (or mid-approach), the viewer reads the caption against an uninformative wide frame, then the camera zooms in right as the caption is fading. The viewer's eye is drawn away from the caption mid-read, and the punchline lands over a now-irrelevant wide shot. The correct pattern is "camera arrives first, caption appears on top of the zoomed evidence."
+
+Mechanism: autozoom generates a zoom event for each `moveTo` / `hover` / `click` step. The camera approach is scheduled to **settle 0.15 s before the event's timestamp**, so the camera is already at the target crop by the time the cursor physically arrives. If the `key` step comes AFTER the `moveTo`, the caption naturally fires on the settled view. If the `key` step comes BEFORE the `moveTo`, the caption fires while the camera is still wide (or mid-approach).
+
+**The rule — reorder reveal beats to put `moveTo` BEFORE the `key`:**
+
+❌ **Wrong** (caption fires wide, camera zooms in while caption is mid-read):
+```jsonc
+{ "action": "key",    "key": "F13", "label": "Branches nested under the split." },
+{ "action": "moveTo", "selector": "#sidebar [data-value='branch-1']" },
+{ "action": "pause",  "ms": 2700 }
+```
+
+✅ **Right** (camera zooms in first, caption appears on zoomed evidence):
+```jsonc
+{ "action": "moveTo", "selector": "#sidebar [data-value='branch-1']" },
+{ "action": "pause",  "ms": 800 },                                      // let the camera settle
+{ "action": "key",    "key": "F13", "label": "Branches nested under the split." },
+{ "action": "pause",  "ms": 2400 }                                      // caption dwell budget
+```
+
+The 800 ms post-`moveTo` pause is the critical piece — it covers the 500 ms approach plus a small margin so the camera is unambiguously settled before the HUD appears. The remaining dwell (2400 ms) plus the `key` step's own 800 ms HUD window plus any trailing hovers compose the full caption visibility (extend-timeline stretches to 3000 ms).
+
+For caption 2 of a two-caption demo, apply the same rule: whatever `moveTo` most naturally triggers the zoom into the second evidence region must come BEFORE the `key`, with an 800 ms pause in between. In practice this pairs cleanly with the "one hover to name the finding" rule: that single hover *is* the `moveTo` that triggers the zoom. Put the caption right after it.
+
+**Action captions (as opposed to reveal captions) don't need this ordering** — a 2-word imperative like "Click Start" is short enough that it's readable during the approach-phase without the reader noticing. Only reveal captions (5–7 words naming a fix) are long enough that the ordering matters.
+
 **Captions only render on `key` action steps — and last only 800 ms unless you extend them.** Despite what the webreel docs suggest, in webreel 0.1.4 the HUD caption is drawn only when `pressKey` fires, and `pressKey` calls `showHud` → sleep 800 ms → `hideHud` — hardcoded. `label` on `click`, `moveTo`, `pause` etc. is **silently ignored at composite time**. A `delay` on the `key` step doesn't extend HUD visibility either — it only delays the next step. So the native output of a `key F13 + label "foo"` step gives you a caption visible for ~0.8 s, which is unreadable.
 
 **Use the two-pass workflow: record, then extend-and-composite.**

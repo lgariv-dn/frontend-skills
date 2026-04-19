@@ -85,7 +85,7 @@ Before writing any config:
 3. If the user's current checkout ≠ the fix branch, switch. Watch for untracked `.agents/skills/`* symlink conflicts — they're regenerable, safe to `rm` selectively before checkout.
 4. If seeding fresh, use the DAP catalog API. See [references/research-sources.md](references/research-sources.md) for upload → approve → execute → poll recipes.
 
-### Phase 3.5 — Lock captions BEFORE building the config
+### Phase 4 — Lock captions BEFORE building the config
 
 Captions anchor the demo's narrative. Every beat that follows — which element to hover, where the camera should zoom, what "evidence" to show — exists to support the caption's claim. If the user rejects a caption in favor of a different angle on the fix, the flow restructures with it: different hover targets, different zoom regions, possibly different beats. Doing caption review *after* the config is written means every caption change ripples into config edits you'd have to throw away.
 
@@ -116,9 +116,9 @@ Keep option labels to the caption text itself (≤ ~45 chars fits the question U
 
 **If the user picks "Other" and their write-in implies a DIFFERENT fix or angle**, that's a flow-level change, not a caption-level change. For example, if your draft caption was "Branches nest under the split" and the user writes "Search now filters branch children", that's a completely different fix being showcased. Stop caption review, loop back to Phase 2's flow question, and re-plan the video. This is the catch the early caption review is designed to enable — cheap to fix here, expensive to fix after the config is built.
 
-**After the final caption for a video is locked, move to Phase 4** and build the config with those captions baked in. The hover targets, zoom moments, and beat ordering all serve the approved captions.
+**After the final caption for a video is locked, move to Phase 5** and build the config with those captions baked in. The hover targets, zoom moments, and beat ordering all serve the approved captions.
 
-### Phase 4 — Generate config(s)
+### Phase 5 — Generate config(s)
 
 Write `webreel.config.json` (one file can hold multiple named videos via the `videos` map; split into separate files only when format or base URL differs substantially).
 
@@ -270,7 +270,7 @@ Captions are the spine of the demo. Vague labels like "Task input we passed in" 
 
 1. **Length: ≤7 words AND ≤45 characters, one line.** Both limits are load-bearing and both must hold:
    - Words drive read time — >7 words is unreadable in the 3000 ms window.
-   - Characters drive HUD pixel width. At `DEFAULT_HUD_THEME.fontSize=56`, each caption char is ~34 px. A 50-char caption is ~1680 px wide — already larger than a 1600×900 frame. The `@lgariv/webreel-core` clamp (≥ `0.1.4-beta-20260418T145700Z`) now shrinks oversized HUDs to fit via SVG `viewBox`, but the shrunk text reads worse than a caption written short to begin with. On older webreel without the clamp, oversized HUDs crash the compositor and hang ffmpeg — see `references/troubleshooting.md § Image to composite`.
+   - Characters drive HUD pixel width. At `DEFAULT_HUD_THEME.fontSize=56`, each caption char is ~34 px. A 50-char caption is ~1680 px wide — already larger than a 1600×900 frame. The `@lgariv/webreel-core` clamp (≥ `0.1.4-beta-20260418T145700Z`) now shrinks oversized HUDs to fit via SVG `viewBox`, but the shrunk text reads worse than a caption written short to begin with. On older webreel without the clamp, oversized HUDs crash the compositor and hang ffmpeg — see `references/troubleshooting.md  Image to composite`.
 
    **5–6 words / ~30–40 chars is the sweet spot; 7 words / 45 chars is the hard ceiling.** If your draft exceeds either, cut qualifiers before shortening vocabulary. Example: "Branches nest under the split, in execution order." (50 ch, 8 w) → "Branches nest under the split." (30 ch, 5 w) — the hovers below already demonstrate the order nuance; the caption doesn't need to carry it.
 2. **Pick a style based on PR type:**
@@ -402,7 +402,7 @@ The Python extend-script caps at the next HUD run, so over-allocating dwell is h
 - Don't reach for ffmpeg `drawtext` post-processing — it re-encodes the whole video for 30+ s and duplicates functionality webreel's own compositor already has.
 - Don't attach the same caption to three consecutive beats — one caption per narrative moment.
 
-**Below-the-fold sanity check** — after a config is written and before the first record run, think: *does every target element fit in the viewport when its parent panel is at its natural size?* Details panels and drawers often have internal `overflow-y: auto` that hides later sections behind scroll. For any step that relies on text or a node further down in a scrollable container, include an explicit scroll step. See **[references/common-interactions.md § Scroll the page or a specific component](references/common-interactions.md)** for the full scroll patterns — window vs. container scroll, negative `y` to go back up, picking the right scroll container when the obvious parent doesn't move, and chaining scrolls with `wait` for async content. Quick shape:
+**Below-the-fold sanity check** — after a config is written and before the first record run, think: *does every target element fit in the viewport when its parent panel is at its natural size?* Details panels and drawers often have internal `overflow-y: auto` that hides later sections behind scroll. For any step that relies on text or a node further down in a scrollable container, include an explicit scroll step. See **[references/common-interactions.md  Scroll the page or a specific component](references/common-interactions.md)** for the full scroll patterns — window vs. container scroll, negative `y` to go back up, picking the right scroll container when the obvious parent doesn't move, and chaining scrolls with `wait` for async content. Quick shape:
 
 ```json
 { "action": "scroll", "selector": "#details", "y": 300 },
@@ -411,9 +411,9 @@ The Python extend-script caps at the next HUD run, so over-allocating dwell is h
 
 If scrolling the obvious outer element (e.g. `#details`) doesn't produce visible movement across frame samples, the overflow is on an inner wrapper — target `#details > div`, `[class*="content"]` within the panel, or the specific CSS-Module class that carries `overflow-y: auto` in the component's stylesheet. Verify the scroll landed by sampling a post-scroll frame and reading it back. If the panel genuinely can't fit the content at any scroll position (rare — but some flex layouts cap visible height), fall back to a taller `viewport` or `zoom: 0.75–0.85` on that specific video rather than shipping a demo where critical content never appears.
 
-### Phase 4.25 — Self-audit the config (before the user sees it)
+### Phase 6 — Self-audit the config (before the user sees it)
 
-You just wrote a config. Before you show the user anything — even the plain-English flow summary in Phase 4.5 — audit it yourself. The user shouldn't be the one who catches that you used a hashed CSS-Module class, or that caption 2 fires before its zoom settles, or that the "status icons survive" claim doesn't actually have a beat demonstrating status icons. That's YOUR job.
+You just wrote a config. Before you show the user anything — even the plain-English flow summary in Phase 7 — audit it yourself. The user shouldn't be the one who catches that you used a hashed CSS-Module class, or that caption 2 fires before its zoom settles, or that the "status icons survive" claim doesn't actually have a beat demonstrating status icons. That's YOUR job.
 
 Two passes, in order:
 
@@ -461,6 +461,7 @@ Walk the config top-to-bottom and verify each rule. This is mechanical; do not s
 - [ ] Each reveal caption has at least one `moveTo` DURING the caption dwell (not frozen cursor for the full 3 s).
 - [ ] No redundant hovers — no three-or-more hovers on sibling elements within < 200 px of each other unless each names a distinct evidence point the caption bundles.
 - [ ] The "continuity hover" during dwell illustrates the caption's claim (same evidence region), not a separate finding.
+- [ ] **No wasted movement** — every `moveTo` advances to a meaningfully different target (different row, different column, different area of the viewport). A `moveTo` that lands within ~30 px of the previous cursor position, or repositions within the same element's bounding box, is wasted: the viewer sees a tiny cursor twitch that adds no signal and reads as "the camera is lost." Collapse consecutive moves on the same element into one, or pick a genuinely different element to hover next. Caught this multiple times post-record — audit it here while it's still a config edit.
 
 **Selectors (every `moveTo`, `click`, `wait`, `hover`):**
 - [ ] No hashed CSS-Module class names (`.hz88NG_itemAction`) — use `[class*="itemAction"]` instead.
@@ -481,11 +482,11 @@ Walk the config top-to-bottom and verify each rule. This is mechanical; do not s
 - [ ] Each reveal caption has ≥ 3000 ms of post-`key` dwell time budget (so extend-timeline can stretch it fully without truncation).
 - [ ] Action captions have ≥ 1500 ms of dwell.
 
-#### If anything fails, fix it in the config yourself and re-run the audit. Only when both passes are clean, proceed to Phase 4.5 (user confirmation).
+#### If anything fails, fix it in the config yourself and re-run the audit. Only when both passes are clean, proceed to Phase 7 (user confirmation).
 
-### Phase 4.5 — Flow summary & go/no-go
+### Phase 7 — Flow summary & go/no-go
 
-Captions were locked in Phase 3.5 before the config was written. Now the config is built around them. The final gate before `webreel record` is a plain-English walkthrough of the flow — catches structural issues (wrong beats, missing moments, wrong order) cheaply, before recording + extend-timeline + composite + visual verification burns tokens and minutes.
+Captions were locked in Phase 4 before the config was written. Now the config is built around them. The final gate before `webreel record` is a plain-English walkthrough of the flow — catches structural issues (wrong beats, missing moments, wrong order) cheaply, before recording + extend-timeline + composite + visual verification burns tokens and minutes.
 
 Describe the final flow to the user in **plain English** — no JSON, no selectors, no step counts, no `moveTo` / `key` tokens. Think of it as the beat sheet a video editor would write. Then confirm with a single `AskUserQuestion`.
 
@@ -530,11 +531,11 @@ Q: "Ready to record, or do you want to adjust anything?"
   4. Different viewport / autoZoom setting
 ```
 
-If they pick 2 or 3 or 4, loop back to the relevant step and re-confirm with Step B again before moving to Phase 5. Do NOT proceed to `webreel record` until the user says "record it."
+If they pick 2 or 3 or 4, loop back to the relevant step and re-confirm with Step B again before moving to Phase 8. Do NOT proceed to `webreel record` until the user says "record it."
 
-**Why this gate matters.** The flow summary catches structural issues cheaply — wrong beats, missing moments, wrong order — before you spend tokens on recording + compositing. Captions were already locked in Phase 3.5, so by the time you hit this phase the only things left to adjust are flow-level (pacing, hover targets, extra beats) or viewport/autoZoom settings. Together, Phase 3.5 + Phase 4.5 cost ~30 seconds of user attention and eliminate the most common "shipped a demo, user asked for changes, re-recorded" cycle.
+**Why this gate matters.** The flow summary catches structural issues cheaply — wrong beats, missing moments, wrong order — before you spend tokens on recording + compositing. Captions were already locked in Phase 4, so by the time you hit this phase the only things left to adjust are flow-level (pacing, hover targets, extra beats) or viewport/autoZoom settings. Together, Phase 4 + Phase 7 cost ~30 seconds of user attention and eliminate the most common "shipped a demo, user asked for changes, re-recorded" cycle.
 
-### Phase 5 — Record & verify
+### Phase 8 — Record & verify
 
 ```bash
 npx webreel validate
@@ -552,7 +553,7 @@ After recording — **always** verify visually:
 2. Read each frame via the `Read` tool (images render inline). Confirm the cursor landed where expected and the critical UI state is visible at each checkpoint.
 3. If any step failed (element not found, wrong state captured), open the live page via Chrome DevTools MCP, query the DOM for a stable selector, patch the config, re-record. Never ship a demo that doesn't visually prove the fix.
 
-### Phase 6 — Deliver
+### Phase 9 — Deliver
 
 Report to the user:
 
@@ -570,7 +571,7 @@ If `gh-image` itself is unavailable and you genuinely can't install it, fall bac
 
 **PR body edit hygiene** — when you edit the PR description, edit only the description. Never land a commit on the branch as a side effect. Description edits are reversible with another `gh pr edit`; pushed commits are not.
 
-### Phase 7 — Clean up repo-level video artifacts
+### Phase 10 — Clean up repo-level video artifacts
 
 After every selected delivery channel has succeeded, delete this video's artifacts from the repo working tree. Webreel outputs are hefty (1–4 MB per MP4 plus raw frames and timelines) and accumulating them across sessions is pure waste — the deliverable is already on GitHub user-attachments, in a Jira comment, or in `~/Downloads/` per the user's choices.
 

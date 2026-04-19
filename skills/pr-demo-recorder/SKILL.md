@@ -411,6 +411,78 @@ The Python extend-script caps at the next HUD run, so over-allocating dwell is h
 
 If scrolling the obvious outer element (e.g. `#details`) doesn't produce visible movement across frame samples, the overflow is on an inner wrapper — target `#details > div`, `[class*="content"]` within the panel, or the specific CSS-Module class that carries `overflow-y: auto` in the component's stylesheet. Verify the scroll landed by sampling a post-scroll frame and reading it back. If the panel genuinely can't fit the content at any scroll position (rare — but some flex layouts cap visible height), fall back to a taller `viewport` or `zoom: 0.75–0.85` on that specific video rather than shipping a demo where critical content never appears.
 
+### Phase 4.25 — Self-audit the config (before the user sees it)
+
+You just wrote a config. Before you show the user anything — even the plain-English flow summary in Phase 4.5 — audit it yourself. The user shouldn't be the one who catches that you used a hashed CSS-Module class, or that caption 2 fires before its zoom settles, or that the "status icons survive" claim doesn't actually have a beat demonstrating status icons. That's YOUR job.
+
+Two passes, in order:
+
+#### Pass 1 — Re-read the source of truth, check evidence coverage
+
+Open the Jira ticket and the PR description **fresh**. You read these in Phase 1 but your drafting attention has been on selectors and step shapes since — re-read now with a user's eye, skipping anything code-adjacent. Specifically:
+
+- **PR body "The Problem" / "What happens" section** — the user-facing symptoms. Not "the tree rebuild produces nodes without instance_status" (that's code). Look at bullets like "Status badges disappear on drill-back" or "Branches are flat at root".
+- **PR body "Solution" / "What now happens" section** — the user-facing new behaviors. Not "withResolvedInstanceStatus thread through recursive builder" (that's code). Look at "Branches now nest under the split" or "Status badges persist across drill-back".
+- **Jira ticket Description + Acceptance Criteria** — these are what QA verifies against. Anything in AC should be demonstrated.
+
+For **each user-facing bullet**, find the beat in your config that showcases it. Write it out as a mental table:
+
+```
+PR symptom / AC item                             → Config beat / caption
+"Branches flat at root"                          → moveTo branch-1 + caption 1 "nested under the split"
+"Status badges disappear on drill-back"          → moveTo completedIcon + caption 2 "icons and expansion survive"
+"Embedded child's expanded state collapses"      → moveTo grandchild + caption 2 (same)
+"Task order wrong"                               → ??? ← gap
+```
+
+If any row has `???` on the right, you have an evidence gap. Either:
+- Add a beat (hover, click, or dedicated caption) that showcases the missing symptom, OR
+- Decide explicitly that this symptom is out of scope for this demo and note it (e.g. "task order is implicitly proven by the nested structure — the viewer sees the correct order visually from the tree").
+
+Do not ship a demo where a PR bullet has no corresponding beat. If the fix fixes three things and the video only shows one, reviewers will notice.
+
+#### Pass 2 — Rule compliance checklist
+
+Walk the config top-to-bottom and verify each rule. This is mechanical; do not skip steps.
+
+**Captions:**
+- [ ] Every reveal caption is ≤ 7 words AND ≤ 45 characters.
+- [ ] Every reveal caption matches the "after" state visible at the frame it fires (not a symptom visible only in a different beat).
+- [ ] For bug-fix PRs: captions use before→after arrow template (when a literal UI string is quotable) or natural prose with connectives (when not). Not forced arrow templates on non-quotable states.
+- [ ] For feature PRs: keynote declarative voice, no before-state contrast.
+- [ ] Action captions are dropped when the cursor motion is self-evident. If present, ≤ 4 words.
+
+**Caption + zoom ordering:**
+- [ ] For each reveal caption, the preceding `moveTo` fires BEFORE the `key` step (caption appears on zoomed view, not wide).
+- [ ] The `moveTo` has `"delay": 0`, OR there is no intervening `pause` that would delay the `key`.
+- [ ] Top-level `"defaultDelay": 0` is set so implicit 400 ms inter-step padding doesn't add dead time.
+
+**Hovers:**
+- [ ] Each reveal caption has at least one `moveTo` DURING the caption dwell (not frozen cursor for the full 3 s).
+- [ ] No redundant hovers — no three-or-more hovers on sibling elements within < 200 px of each other unless each names a distinct evidence point the caption bundles.
+- [ ] The "continuity hover" during dwell illustrates the caption's claim (same evidence region), not a separate finding.
+
+**Selectors (every `moveTo`, `click`, `wait`, `hover`):**
+- [ ] No hashed CSS-Module class names (`.hz88NG_itemAction`) — use `[class*="itemAction"]` instead.
+- [ ] No Playwright-specific combinators (`:has-text(...)`) — use `text:` + `within:` or `getByRole` patterns.
+- [ ] Selectors follow the priority table: visible text > aria-label > data-testid > data-part > fragment class match > DOM id.
+- [ ] Every selector is scoped — `#embedded-workflows-sidebar [data-value=...]` not a bare `[data-value=...]`.
+
+**Autozoom:**
+- [ ] If enabled: `sessionGapS` set appropriately for the flow's navigation pacing (default 4 s, bump to ~6 s for drill-in/drill-back flows to avoid double-pulse zooms).
+- [ ] Autozoom is NOT zooming on pure navigation clicks that don't reveal evidence (if it is, that's a sessionGapS or step-structure issue).
+
+**Viewport + layout:**
+- [ ] Every evidence target fits in the chosen viewport at its natural size.
+- [ ] For any target in a scrollable container, there's an explicit `scroll` step before the beat.
+- [ ] Caption width fits the viewport (ceiling-checked via the 45-char rule above).
+
+**Timing:**
+- [ ] Each reveal caption has ≥ 3000 ms of post-`key` dwell time budget (so extend-timeline can stretch it fully without truncation).
+- [ ] Action captions have ≥ 1500 ms of dwell.
+
+#### If anything fails, fix it in the config yourself and re-run the audit. Only when both passes are clean, proceed to Phase 4.5 (user confirmation).
+
 ### Phase 4.5 — Flow summary & go/no-go
 
 Captions were locked in Phase 3.5 before the config was written. Now the config is built around them. The final gate before `webreel record` is a plain-English walkthrough of the flow — catches structural issues (wrong beats, missing moments, wrong order) cheaply, before recording + extend-timeline + composite + visual verification burns tokens and minutes.

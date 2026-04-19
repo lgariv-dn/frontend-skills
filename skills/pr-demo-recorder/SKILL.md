@@ -85,6 +85,39 @@ Before writing any config:
 3. If the user's current checkout ≠ the fix branch, switch. Watch for untracked `.agents/skills/`* symlink conflicts — they're regenerable, safe to `rm` selectively before checkout.
 4. If seeding fresh, use the DAP catalog API. See [references/research-sources.md](references/research-sources.md) for upload → approve → execute → poll recipes.
 
+### Phase 3.5 — Lock captions BEFORE building the config
+
+Captions anchor the demo's narrative. Every beat that follows — which element to hover, where the camera should zoom, what "evidence" to show — exists to support the caption's claim. If the user rejects a caption in favor of a different angle on the fix, the flow restructures with it: different hover targets, different zoom regions, possibly different beats. Doing caption review *after* the config is written means every caption change ripples into config edits you'd have to throw away.
+
+Lock captions first. Build the config to serve them.
+
+**Draft captions from the Phase 1 research + Phase 2 flow plan.** At this point you know the PR's fix(es), which E2E specs encode the verified flow, and how the user wants the video scoped. That's enough to draft 1–2 narrative captions per video without having touched a selector or written a config.
+
+**Present variants per caption via `AskUserQuestion`.** The drafts you wrote are your recommendations; the user is the one shipping the demo. Offer 2–4 meaningfully-different takes — don't produce synonym-swapped near-duplicates. The templates in the caption-writing section above give you three voices:
+
+- **Before/after arrow** — quotes literal UI strings: `"Before: 'No input data' → now: full workflow input."`
+- **Natural prose with connectives** — uses `used to / now / no longer / previously`: `"Drill-back no longer resets the sidebar."`
+- **Keynote declarative** — present-tense benefit-forward: `"Status icons persist through drill-back."`
+
+**Example** for a bug-fix caption about a state-preservation fix:
+
+```
+Q: "Pick a caption for the post-drill-back moment, or write your own:"
+  1. "Icons and expansion survive drill-back." (Recommended — natural prose, 39 ch, 6 w)
+  2. "Before: state reset → now: fully preserved." (arrow template, 45 ch, 7 w)
+  3. "Drill-back no longer resets the sidebar." (natural prose, 40 ch, 7 w)
+```
+
+Always include "Other" implicitly (auto-added). One "Recommended" per question (your best pick first, per global user instructions).
+
+**Iterate each caption separately** — don't batch all captions into one question. Each caption gets dedicated attention.
+
+Keep option labels to the caption text itself (≤ ~45 chars fits the question UI). Use the `description` field to tag voice style: `"Arrow template — quotes literal UI"`, `"Natural prose"`, `"Keynote declarative"`.
+
+**If the user picks "Other" and their write-in implies a DIFFERENT fix or angle**, that's a flow-level change, not a caption-level change. For example, if your draft caption was "Branches nest under the split" and the user writes "Search now filters branch children", that's a completely different fix being showcased. Stop caption review, loop back to Phase 2's flow question, and re-plan the video. This is the catch the early caption review is designed to enable — cheap to fix here, expensive to fix after the config is built.
+
+**After the final caption for a video is locked, move to Phase 4** and build the config with those captions baked in. The hover targets, zoom moments, and beat ordering all serve the approved captions.
+
 ### Phase 4 — Generate config(s)
 
 Write `webreel.config.json` (one file can hold multiple named videos via the `videos` map; split into separate files only when format or base URL differs substantially).
@@ -378,36 +411,11 @@ The Python extend-script caps at the next HUD run, so over-allocating dwell is h
 
 If scrolling the obvious outer element (e.g. `#details`) doesn't produce visible movement across frame samples, the overflow is on an inner wrapper — target `#details > div`, `[class*="content"]` within the panel, or the specific CSS-Module class that carries `overflow-y: auto` in the component's stylesheet. Verify the scroll landed by sampling a post-scroll frame and reading it back. If the panel genuinely can't fit the content at any scroll position (rare — but some flex layouts cap visible height), fall back to a taller `viewport` or `zoom: 0.75–0.85` on that specific video rather than shipping a demo where critical content never appears.
 
-### Phase 4.5 — User confirmation before recording
+### Phase 4.5 — Flow summary & go/no-go
 
-Recording + extend-timeline + composite + visual verification costs real tokens and real minutes. Getting a caption wrong or a beat misaligned means doing the whole loop again. Two cheap confirmation steps land before you start recording — catch problems when fixing them is still a config-edit, not a re-record.
+Captions were locked in Phase 3.5 before the config was written. Now the config is built around them. The final gate before `webreel record` is a plain-English walkthrough of the flow — catches structural issues (wrong beats, missing moments, wrong order) cheaply, before recording + extend-timeline + composite + visual verification burns tokens and minutes.
 
-#### Step A — Caption-variant review (per caption)
-
-**For each caption in the config**, present the user with 2–4 variants via `AskUserQuestion` so they can pick or write their own. The draft caption you wrote is your recommendation, but the user is the one shipping the demo — their voice, their call.
-
-**How to generate the variants.** The caption-writing section above gives you templates: the before/after arrow, natural prose with connectives, keynote-style declarative. Use those to produce 2–3 meaningfully-different takes per caption. Don't produce near-duplicates (e.g. synonym swaps) — the point is to give the user a *choice of voice*, not a choice of phrasing.
-
-**Example** for a bug-fix caption about a state-preservation fix:
-
-```
-Q: "Pick a caption for the post-drill-back moment, or write your own:"
-  1. "Icons and expansion survive drill-back." (Recommended — natural prose, 39 ch, 6 w)
-  2. "Before: state reset → now: fully preserved." (arrow template, 45 ch, 7 w)
-  3. "Drill-back no longer resets the sidebar." (natural prose, 40 ch, 7 w)
-```
-
-Always include "Other" implicitly (it's auto-added). Include one "Recommended" per question (your best pick first, per global user instructions).
-
-**Iterate each caption separately** — don't batch all captions into one question. The user needs to think about each caption's content without it being diluted.
-
-Keep each option label to the caption text itself (≤ ~45 chars means they mostly fit in the question UI). Use the `description` field to tag the voice style: `"Arrow template — quotes literal UI"`, `"Natural prose"`, `"Keynote declarative"`, etc.
-
-**After the user picks or writes their own, update the config immediately** before moving to the next caption or to Step B. Don't accumulate several "to be applied later" edits.
-
-#### Step B — Flow summary & go/no-go
-
-Once every caption is locked, describe the final flow to the user in **plain English** — no JSON, no selectors, no step counts, no `moveTo` / `key` tokens. Think of it as the beat sheet a video editor would write. Then confirm with a single `AskUserQuestion`.
+Describe the final flow to the user in **plain English** — no JSON, no selectors, no step counts, no `moveTo` / `key` tokens. Think of it as the beat sheet a video editor would write. Then confirm with a single `AskUserQuestion`.
 
 **What to include in the summary:**
 - Where the video opens (screen name, what's visible)
@@ -452,7 +460,7 @@ Q: "Ready to record, or do you want to adjust anything?"
 
 If they pick 2 or 3 or 4, loop back to the relevant step and re-confirm with Step B again before moving to Phase 5. Do NOT proceed to `webreel record` until the user says "record it."
 
-**Why both steps, not just one.** Captions are the single highest-leverage change — wrong caption = unusable demo = full re-record. Variant review catches caption-level issues cheaply. Flow summary catches structural issues (wrong beats, missing moments, wrong order) cheaply. Together they cost ~30 seconds of the user's attention in exchange for eliminating the most common "shipped a demo, user asked for changes, re-recorded" cycle.
+**Why this gate matters.** The flow summary catches structural issues cheaply — wrong beats, missing moments, wrong order — before you spend tokens on recording + compositing. Captions were already locked in Phase 3.5, so by the time you hit this phase the only things left to adjust are flow-level (pacing, hover targets, extra beats) or viewport/autoZoom settings. Together, Phase 3.5 + Phase 4.5 cost ~30 seconds of user attention and eliminate the most common "shipped a demo, user asked for changes, re-recorded" cycle.
 
 ### Phase 5 — Record & verify
 

@@ -181,6 +181,24 @@ For caption 2 of a two-caption demo, apply the same pattern: `moveTo (delay: 0) 
 
 **Action captions (as opposed to reveal captions) don't need this ordering** — a 2-word imperative like "Click Start" is short enough that it's readable during the approach-phase without the reader noticing. Only reveal captions (5–7 words naming a fix) are long enough that the ordering matters.
 
+**Keep the cursor moving during the caption dwell — don't freeze it for the full 3 s.** A reveal caption's full 3000 ms window is too long to sit on a static cursor. Viewers read the 5–7 words in ~1500 ms, then their eyes scan back to the scene. If the cursor is frozen on the initial target, the frame feels "paused" — the viewer has nothing to track while the caption is still up, and when the cursor finally moves *after* the caption fades, it feels like the demo "waited" for them.
+
+The correct pattern walks the cursor through the evidence *during* the caption window, so the caption narrates what the viewer is actively watching:
+
+```jsonc
+{ "action": "moveTo", "selector": "<first-evidence-target>", "delay": 0 },   // hover 1 → triggers zoom
+{ "action": "key",    "key": "F13", "label": "..." },                          // caption fires on zoomed view
+{ "action": "pause",  "ms": 1000 },                                            // let caption register (~1 s)
+{ "action": "moveTo", "selector": "<adjacent-evidence-target>" },              // hover 2 while caption still visible
+{ "action": "pause",  "ms": 1400 }                                             // rest of caption dwell
+```
+
+**This is NOT a violation of the hover-count rule** — the second hover illustrates the SAME claim by walking through it (e.g., hovering the `Branch 2` wrapper, then hovering the `child` workflow nested inside it, both illustrating "nested under the split"). It's visual continuity for a single evidence point, not two separate findings.
+
+Self-test: during the caption dwell, is the cursor *doing* anything the viewer can track? If it's static for >1 s while the caption is up, add a hover. Watch the clip and notice: when does the cursor start moving relative to when the caption appears? If the cursor only moves *after* the caption disappears, the viewer reads about something they can't see being pointed to.
+
+The caption-2 pattern naturally satisfies this when the caption bundles two facts (e.g., "icons and expansion survive") because you already have two hovers showing each fact. Single-claim captions (caption-1) need the extra hover added explicitly.
+
 **Captions only render on `key` action steps — and last only 800 ms unless you extend them.** Despite what the webreel docs suggest, in webreel 0.1.4 the HUD caption is drawn only when `pressKey` fires, and `pressKey` calls `showHud` → sleep 800 ms → `hideHud` — hardcoded. `label` on `click`, `moveTo`, `pause` etc. is **silently ignored at composite time**. A `delay` on the `key` step doesn't extend HUD visibility either — it only delays the next step. So the native output of a `key F13 + label "foo"` step gives you a caption visible for ~0.8 s, which is unreadable.
 
 **Use the two-pass workflow: record, then extend-and-composite.**

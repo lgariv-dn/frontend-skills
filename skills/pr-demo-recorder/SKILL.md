@@ -378,6 +378,82 @@ The Python extend-script caps at the next HUD run, so over-allocating dwell is h
 
 If scrolling the obvious outer element (e.g. `#details`) doesn't produce visible movement across frame samples, the overflow is on an inner wrapper — target `#details > div`, `[class*="content"]` within the panel, or the specific CSS-Module class that carries `overflow-y: auto` in the component's stylesheet. Verify the scroll landed by sampling a post-scroll frame and reading it back. If the panel genuinely can't fit the content at any scroll position (rare — but some flex layouts cap visible height), fall back to a taller `viewport` or `zoom: 0.75–0.85` on that specific video rather than shipping a demo where critical content never appears.
 
+### Phase 4.5 — User confirmation before recording
+
+Recording + extend-timeline + composite + visual verification costs real tokens and real minutes. Getting a caption wrong or a beat misaligned means doing the whole loop again. Two cheap confirmation steps land before you start recording — catch problems when fixing them is still a config-edit, not a re-record.
+
+#### Step A — Caption-variant review (per caption)
+
+**For each caption in the config**, present the user with 2–4 variants via `AskUserQuestion` so they can pick or write their own. The draft caption you wrote is your recommendation, but the user is the one shipping the demo — their voice, their call.
+
+**How to generate the variants.** The caption-writing section above gives you templates: the before/after arrow, natural prose with connectives, keynote-style declarative. Use those to produce 2–3 meaningfully-different takes per caption. Don't produce near-duplicates (e.g. synonym swaps) — the point is to give the user a *choice of voice*, not a choice of phrasing.
+
+**Example** for a bug-fix caption about a state-preservation fix:
+
+```
+Q: "Pick a caption for the post-drill-back moment, or write your own:"
+  1. "Icons and expansion survive drill-back." (Recommended — natural prose, 39 ch, 6 w)
+  2. "Before: state reset → now: fully preserved." (arrow template, 45 ch, 7 w)
+  3. "Drill-back no longer resets the sidebar." (natural prose, 40 ch, 7 w)
+```
+
+Always include "Other" implicitly (it's auto-added). Include one "Recommended" per question (your best pick first, per global user instructions).
+
+**Iterate each caption separately** — don't batch all captions into one question. The user needs to think about each caption's content without it being diluted.
+
+Keep each option label to the caption text itself (≤ ~45 chars means they mostly fit in the question UI). Use the `description` field to tag the voice style: `"Arrow template — quotes literal UI"`, `"Natural prose"`, `"Keynote declarative"`, etc.
+
+**After the user picks or writes their own, update the config immediately** before moving to the next caption or to Step B. Don't accumulate several "to be applied later" edits.
+
+#### Step B — Flow summary & go/no-go
+
+Once every caption is locked, describe the final flow to the user in **plain English** — no JSON, no selectors, no step counts, no `moveTo` / `key` tokens. Think of it as the beat sheet a video editor would write. Then confirm with a single `AskUserQuestion`.
+
+**What to include in the summary:**
+- Where the video opens (screen name, what's visible)
+- Each narrative beat as a sentence: what the cursor does, what the viewer sees change, what the caption says
+- Any zoom-in moments (e.g. "camera zooms into the sidebar here")
+- Approximate duration ("roughly 15 seconds")
+
+**What to NOT include:**
+- File paths, selectors, step indices
+- `action: moveTo`, `key F13`, `pause 1200`
+- Any mention of webreel internals
+
+**Example summary:**
+
+```
+Here's the flow I'll record (~17 s):
+
+1. Opens on the AR-58199 instance viewer, showing the full workflow canvas
+   with the Task overview sidebar on the left.
+2. Cursor moves up to the Branch 2 wrapper; camera zooms in on the sidebar.
+3. Caption appears: "Flat before; now nested under the split."
+4. While the caption is visible, cursor moves down to the child workflow
+   nested inside Branch 2 — illustrates the depth of the nesting.
+5. Cursor drills into the child workflow. Pause briefly inside.
+6. Cursor clicks the breadcrumb to return to parent. Camera releases wide.
+7. Camera zooms into the sidebar again for the second beat.
+8. Caption appears: "Icons and expansion survive drill-back."
+9. Cursor hovers the status icon (proving icons survived), then the nested
+   grandchild (proving expansion survived). Caption stays visible for both.
+10. Camera releases wide, end.
+```
+
+Then ask:
+
+```
+Q: "Ready to record, or do you want to adjust anything?"
+  1. Record it (Recommended)
+  2. Change a caption
+  3. Adjust the flow (pacing, hover targets, extra beats)
+  4. Different viewport / autoZoom setting
+```
+
+If they pick 2 or 3 or 4, loop back to the relevant step and re-confirm with Step B again before moving to Phase 5. Do NOT proceed to `webreel record` until the user says "record it."
+
+**Why both steps, not just one.** Captions are the single highest-leverage change — wrong caption = unusable demo = full re-record. Variant review catches caption-level issues cheaply. Flow summary catches structural issues (wrong beats, missing moments, wrong order) cheaply. Together they cost ~30 seconds of the user's attention in exchange for eliminating the most common "shipped a demo, user asked for changes, re-recorded" cycle.
+
 ### Phase 5 — Record & verify
 
 ```bash

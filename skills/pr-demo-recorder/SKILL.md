@@ -539,19 +539,55 @@ If they pick 2 or 3 or 4, loop back to the relevant step and re-confirm with Ste
 
 ```bash
 npx webreel validate
-npx webreel record <video-name> --verbose
+npx webreel record <video-name> --verbose 2>&1 | tee /tmp/webreel-record.log
 ```
 
-After recording — **always** verify visually:
+**Always capture `--verbose` and tee it.** The verbose stream contains the autozoom event log — one line per zoom event with timestamp and target bbox. That log is the single ground-truth source for diagnosing any "the video shows something weird" report. Frame-sampling tells you what rendered; the event log tells you what the camera was *instructed* to do. When the two disagree, the event log is the answer — the bad frames are a symptom, not the cause.
 
-1. Sample 4 frames across the video:
-  ```bash
-   ~/.webreel/bin/ffmpeg/ffmpeg -y -v error -i videos/<name>.mp4 \
-     -vf "select='eq(n\,180)+eq(n\,600)+eq(n\,900)+eq(n\,1200)'" \
-     -vsync vfr /tmp/frame_%02d.png
-  ```
-2. Read each frame via the `Read` tool (images render inline). Confirm the cursor landed where expected and the critical UI state is visible at each checkpoint.
-3. If any step failed (element not found, wrong state captured), open the live page via Chrome DevTools MCP, query the DOM for a stable selector, patch the config, re-record. Never ship a demo that doesn't visually prove the fix.
+After the record completes, run **all three** diagnostics below. Do not ship, and do not claim a fix worked, without all three passing. This protocol exists because I've shipped broken videos four times claiming "fixed" while the real cause was still live; every one of those rollbacks would have been prevented by running these steps before declaring done.
+
+#### 1. Autozoom event-log audit — do this first
+
+```bash
+grep "box=" /tmp/webreel-record.log
+```
+
+Each line reads `t=X.Xs box=x,y w×h`. For every line, scan for these failure patterns:
+
+- **Coordinates outside the viewport** — e.g. `y=18628` with a 1920×1080 viewport. `findElementByText` resolved to a hidden element in a portal, virtual list, or off-screen drawer that happened to contain the target text. Autozoom will dutifully pan the camera into pure empty space below the page — producing 3–10 s of screen time with no visible cursor and no visible UI. This is the most expensive failure mode because the click often still "works" (mousedown on coords that happen to hit a different handler), so the flow finishes and you don't notice until watching the video. **Fix:** either tighten the `within:` scope to a container that only contains the visible element, switch to a CSS `selector:` with a unique attribute (`data-testid`, `aria-label`, unique `data-id`), or — if the step is housekeeping (modal dismiss, deselect, fit-view) — remove it entirely.
+- **Unusually thin bboxes** — `w×h` like `248×16`. Normal UI controls are 30+ px tall; a 16 px match is usually a hidden label inside a virtual scrollable container. Same fixes as the off-screen case.
+- **Two consecutive events 4–6 s apart on navigation targets** — autozoom's default `sessionGapS: 4.0` splits these into two sessions, producing a visible zoom-out-zoom-in pulse during what the viewer reads as one action. Bump `sessionGapS` to 6.0 for navigation-heavy flows, or tighten flow pacing to bring the gap under 4.0 s.
+- **Event count much lower than targeted-step count** — events should fire for every `click`, `contextmenu`, `moveTo`, `hover`, `select`, `type`, `key` step (plus `drag` unless patched out). Far fewer events usually means the recorder was failing silently on resolveTarget — re-run and scan the full log for `Element not found`.
+
+If you find any pattern above, fix the config and re-record before moving to steps 2 and 3. Don't frame-sample a known-bad recording.
+
+#### 2. Watch the whole recording, not just four frames
+
+For any non-trivial video (> 20 s), **sample at 2 fps across the full runtime**. A 40 s video produces 80+ frames, which is tractable to read in ~2 minutes. Four evenly-spaced frames cannot surface a 3-second dead zone because there's a 75 % chance the sparse sampling misses it — exactly the failure mode that burned this skill through four "fixed" videos in one session.
+
+```bash
+~/.webreel/bin/ffmpeg/ffmpeg -y -v error -i videos/<name>.mp4 \
+  -vf "fps=2" /tmp/review_%03d.png
+```
+
+Read every frame with the `Read` tool. For each one, answer three questions:
+
+1. **What is the camera framing?** (a target element or wide view — not random empty space, not a zoomed crop of blank canvas)
+2. **Is the cursor on-target?** (not teleported, not off-screen unless the beat legitimately shows a "nothing happens here" moment — e.g. the protected-node right-click beat that's *supposed* to render no menu)
+3. **If a caption is visible, does the frame back it up?** (the caption's claim must be evidenced by the frame, per the caption-state matching rule in Phase 5)
+
+If **any** frame fails **any** check, fix the config and re-record. Do not ship a video on the premise that the bad frames "are brief" — viewers skim, and one 500 ms stretch of dead screen time is what they remember.
+
+#### 3. If a user reports a visual issue, audit before patching
+
+When the user says "the video has a problem at t=X", the response is NOT to guess at a cause and ship a speculative fix. The response is:
+
+1. Pull the existing record's event log (re-record with `--verbose | tee` if the log isn't on disk).
+2. Find the autozoom event whose timestamp is closest to the reported timestamp.
+3. Check that event's bbox against the three failure patterns in step 1 above.
+4. Only then propose and apply a fix — and re-run **both** step 1 and step 2 before declaring the new video shipped.
+
+Every time I've skipped this protocol and gone "oh, it's probably X, removing X" based on the config alone, the user has come back and said "still happens". The 2-minute event-log audit catches what guessing can't.
 
 ### Phase 9 — Deliver
 
@@ -595,6 +631,9 @@ Mention the cleanup in the final summary so the user knows the repo is clean. If
 - **Stale repro instances** — workflow version bumps orphan instances. Visually verify the URL before scripting.
 - **Branch drift** — the dev server reflects on-disk code. Confirm the running code has the fix via Chrome DevTools MCP before recording.
 - **Over-narrating** — demos are short. Pick 3–5 moments that tell the story; skip assertions that add no visual signal.
+- **`findElementByText` off-screen matches** — webreel's text lookup uses substring match + smallest-bbox selection over the DOM. When the same text appears both in a visible button and in a hidden off-screen element (virtual list, portal, Ark UI drawer, collapsed accordion), the algorithm can pick the hidden one — returning a bbox with coordinates well outside the viewport (e.g. `y=18628`). The click often still "works" because the press/release lands on some handler, but autozoom pans the camera into pure empty space and produces multi-second dead zones with no visible UI. **Prevention:** always scope text steps with a tight `within:` that excludes virtual/off-screen regions, or switch to a CSS selector targeting a unique attribute (`data-testid`, `aria-label`, specific `data-id`) when the DOM has this pattern. When in doubt, audit the event log (Phase 8 step 1) — any `y` or `x` outside the viewport is this bug.
+- **Drag + autozoom tight-crop** — autozoom anchors drag events on `step.from`, which is typically a small source element (a task-panel tile, a sidebar row). The camera zooms tight around the source, and the cursor then drags off-frame toward the target. The stock `@lgariv/webreel` patched in this skill's `ensure-webreel.sh` skips autozoom for drag entirely (added to the `return null` list in `captureZoomEvent`). If running on a fork without the skip, either set `"autoZoom": false` for the whole video (loses autozoom on useful beats) or re-apply the drag-skip patch from `webreel_contextmenu_patch.md` in memory.
+- **Housekeeping steps that autozoom frames** — every `click`, `moveTo`, and `contextmenu` generates an autozoom event on its target, including dismiss-modal, deselect-pane, and fit-view clicks. Those targets live in uninteresting corners (panel footer buttons, controls cluster at the bottom-right), so autozoom pans the camera there for a brief hold, producing visible dead time. **Prevention:** in Phase 5 (config generation), treat every targeted step as a camera instruction. If a step has no caption and no evidence moment for the viewer, remove it or find a non-targeted equivalent (e.g. often the subsequent meaningful step handles deselection naturally).
 
 ## When things go wrong
 

@@ -167,6 +167,21 @@ Write `webreel.config.json` (one file can hold multiple named videos via the `vi
 
 **Alternative:** tighten the flow itself. Reducing the post-drill-in `pause` from ~1200 ms → ~600 ms, or dropping the explicit `hover` before a drill click (if the previous `moveTo` already put the cursor on the row and CSS `:hover` fires from the mouse position), can bring the gap under 4.0 s without any config knob. Faster navigation means fewer pauses means naturally merged sessions. Prefer this over `sessionGapS` tuning when the flow's pacing was already too slow anyway.
 
+**Cursor-style act standard — one smooth guided task, not a checklist.** The Cursor `/multitask` reference clip (`x.com/cursor_ai/status/2047764651363180839`, 2026-04-24) is the benchmark for polish: ~25 s, 60 fps, one continuous product action, sparse/no captions, no long setup, and camera movement that always has an obvious target. Use that as the bar for PR demos unless the user asks for a raw QA proof.
+
+For every generated config, ask: "would this feel like one recorded act if captions were removed?" If the answer is no, restructure before recording.
+
+- **Start on action in < 1 s.** The opening frame may establish context, but the cursor should begin moving to the first meaningful target almost immediately. Do not spend 2–4 s on a static canvas before the first proof.
+- **One user intent per video.** For context-menu work, the intent might be "copy a node, paste it at the pane cursor, then paste a clean copy." Do not make the video a tour of every menu item unless the PR itself is about menu taxonomy.
+- **Keep type/state evidence while smoothing.** If the value of the demo depends on item type, disabled/enabled state, or the distinction between `Paste here` and `Paste here without config`, those UI states must remain visible. Polish means fewer redundant beats, not removing the evidence that makes the feature reviewable.
+- **Prefer 2–3 reveal captions max for a simple PR.** More captions turns the clip into a narrated test run. Use captions only when the pixels alone do not explain the change. If every action needs a caption, the flow is too unclear.
+- **No caption should cover the evidence.** The HUD is large. If a lower-center caption overlaps the node, menu row, dialog field, or value being proven, shorten/drop the caption or change the framing so the evidence stays readable.
+- **Avoid menu ping-pong.** Opening and closing the same menu repeatedly reads as mechanical. For menus/dropdowns, open once to show state, perform the decisive action, and only reopen when the before/after state is the actual story.
+- **No long blank-canvas crops.** Autozoom on a pane coordinate can produce a close-up of white space. If the viewer sees mostly blank canvas for >500 ms, either target the nearby node/menu instead, start from a tighter fit-view, or remove that beat.
+- **Cursor motion should be readable.** Add a 150–250 ms pre-click settle only when it clarifies the target, then a 400–700 ms reaction dwell after UI changes. Static cursor holds >1 s are allowed only while a caption is being read and the frame visibly proves that caption.
+- **Do not release/re-acquire camera inside one logical action.** Copy → open pane menu → paste is one cluster. Tune `sessionGapS` and remove extra pauses so the camera does not pulse wide between related steps.
+- **Cut the runtime before adding more proof.** A simple PR demo should aim for 15–25 s. If it exceeds ~25 s, cut redundant captions, repeated hovers, housekeeping clicks, and menu reopenings before accepting a long clip.
+
 **Caption-after-zoom ordering — reveal captions must fire AFTER the camera settles, not before.** When autozoom is on, the camera needs ~500 ms to approach from wide → target crop before it "arrives" at the zoomed-in view. If the reveal `key` step fires while the camera is still wide (or mid-approach), the viewer reads the caption against an uninformative wide frame, then the camera zooms in right as the caption is fading. The viewer's eye is drawn away from the caption mid-read, and the punchline lands over a now-irrelevant wide shot. The correct pattern is "camera arrives first, caption appears on top of the zoomed evidence."
 
 Mechanism: autozoom generates a zoom event for each `moveTo` / `hover` / `click` step. The camera approach is scheduled to **settle 0.15 s before the event's timestamp**, so the camera is already at the target crop by the time the cursor physically arrives. If the `key` step comes AFTER the `moveTo`, the caption naturally fires on the settled view. If the `key` step comes BEFORE the `moveTo`, the caption fires while the camera is still wide (or mid-approach).
@@ -482,6 +497,14 @@ Walk the config top-to-bottom and verify each rule. This is mechanical; do not s
 - [ ] Each reveal caption has ≥ 3000 ms of post-`key` dwell time budget (so extend-timeline can stretch it fully without truncation).
 - [ ] Action captions have ≥ 1500 ms of dwell.
 
+**Cinematic act:**
+- [ ] First meaningful cursor movement starts in < 1 s.
+- [ ] The flow reads as one user task, not a checklist of assertions.
+- [ ] Type/state evidence is preserved for any menu item, paste variant, disabled state, or copied node identity the PR needs reviewers to see.
+- [ ] No repeated menu open/close unless the state change itself is being demonstrated.
+- [ ] No caption count bloat — simple PR demos stay at 2–3 reveal captions unless there is a scoped reason.
+- [ ] No blank-canvas crop or static cursor hold is expected to last > 1 s.
+
 #### If anything fails, fix it in the config yourself and re-run the audit. Only when both passes are clean, proceed to Phase 7 (user confirmation).
 
 ### Phase 7 — Flow summary & go/no-go
@@ -542,9 +565,9 @@ npx webreel validate
 npx webreel record <video-name> --verbose 2>&1 | tee /tmp/webreel-record.log
 ```
 
-**Always capture `--verbose` and tee it.** The verbose stream contains the autozoom event log — one line per zoom event with timestamp and target bbox. That log is the single ground-truth source for diagnosing any "the video shows something weird" report. Frame-sampling tells you what rendered; the event log tells you what the camera was *instructed* to do. When the two disagree, the event log is the answer — the bad frames are a symptom, not the cause.
+**Always capture `--verbose` and tee it.** The verbose stream contains the autozoom event log — one line per zoom event with timestamp and target bbox. That log is the single ground-truth source for diagnosing any "the video shows something weird" report. Frame-sampling tells you what rendered; the event log tells you what the camera was instructed to do. When the two disagree, the event log explains why the frames look wrong.
 
-After the record completes, run **all three** diagnostics below. Do not ship, and do not claim a fix worked, without all three passing. This protocol exists because I've shipped broken videos four times claiming "fixed" while the real cause was still live; every one of those rollbacks would have been prevented by running these steps before declaring done.
+After the record completes, run **all four** diagnostics below. Do not ship, and do not claim a fix worked, without all four passing.
 
 #### 1. Autozoom event-log audit — do this first
 
@@ -554,40 +577,63 @@ grep "box=" /tmp/webreel-record.log
 
 Each line reads `t=X.Xs box=x,y w×h`. For every line, scan for these failure patterns:
 
-- **Coordinates outside the viewport** — e.g. `y=18628` with a 1920×1080 viewport. `findElementByText` resolved to a hidden element in a portal, virtual list, or off-screen drawer that happened to contain the target text. Autozoom will dutifully pan the camera into pure empty space below the page — producing 3–10 s of screen time with no visible cursor and no visible UI. This is the most expensive failure mode because the click often still "works" (mousedown on coords that happen to hit a different handler), so the flow finishes and you don't notice until watching the video. **Fix:** either tighten the `within:` scope to a container that only contains the visible element, switch to a CSS `selector:` with a unique attribute (`data-testid`, `aria-label`, unique `data-id`), or — if the step is housekeeping (modal dismiss, deselect, fit-view) — remove it entirely.
+- **Coordinates outside the viewport** — e.g. `y=18628` with a 1920×1080 viewport. `findElementByText` resolved to a hidden element in a portal, virtual list, or off-screen drawer that happened to contain the target text. Autozoom will pan into empty space below the page, producing seconds with no visible cursor and no visible UI. **Fix:** tighten the `within:` scope, switch to a unique CSS selector (`data-testid`, `aria-label`, specific `data-id`), or remove the housekeeping step entirely.
 - **Unusually thin bboxes** — `w×h` like `248×16`. Normal UI controls are 30+ px tall; a 16 px match is usually a hidden label inside a virtual scrollable container. Same fixes as the off-screen case.
-- **Two consecutive events 4–6 s apart on navigation targets** — autozoom's default `sessionGapS: 4.0` splits these into two sessions, producing a visible zoom-out-zoom-in pulse during what the viewer reads as one action. Bump `sessionGapS` to 6.0 for navigation-heavy flows, or tighten flow pacing to bring the gap under 4.0 s.
-- **Event count much lower than targeted-step count** — events should fire for every `click`, `contextmenu`, `moveTo`, `hover`, `select`, `type`, `key` step (plus `drag` unless patched out). Far fewer events usually means the recorder was failing silently on resolveTarget — re-run and scan the full log for `Element not found`.
+- **Two consecutive events 4–6 s apart on related targets** — autozoom's default `sessionGapS: 4.0` splits these into two sessions, producing a visible zoom-out-zoom-in pulse during what the viewer reads as one action. Bump `sessionGapS` to 5.5–6.5 for the video, or tighten pacing to bring the gap under 4.0 s.
+- **Event count much lower than targeted-step count** — events should fire for every `click`, `contextmenu`, `moveTo`, `hover`, `select`, `type`, and `key` step. Far fewer events usually means the recorder was failing silently on `resolveTarget`; scan the full log for selector failures.
 
-If you find any pattern above, fix the config and re-record before moving to steps 2 and 3. Don't frame-sample a known-bad recording.
+If you find any pattern above, fix the config and re-record before moving to steps 2–4. Do not frame-sample a known-bad recording.
 
-#### 2. Watch the whole recording, not just four frames
+#### 2. Frame-by-frame act audit
 
-For any non-trivial video (> 20 s), **sample at 2 fps across the full runtime**. A 40 s video produces 80+ frames, which is tractable to read in ~2 minutes. Four evenly-spaced frames cannot surface a 3-second dead zone because there's a 75 % chance the sparse sampling misses it — exactly the failure mode that burned this skill through four "fixed" videos in one session.
+For any non-trivial video (> 15 s), sample at **2 fps across the full runtime**. A 25 s video produces ~50 review frames; a 40 s video produces ~80. This is still fast to inspect and catches dead zones that four sparse screenshots miss.
 
 ```bash
+mkdir -p /tmp/webreel-review/<video-name>
 ~/.webreel/bin/ffmpeg/ffmpeg -y -v error -i videos/<name>.mp4 \
-  -vf "fps=2" /tmp/review_%03d.png
+  -vf "fps=2,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='%{pts\\:hms}':x=10:y=10:fontsize=18:fontcolor=red:box=1:boxcolor=white@0.8" \
+  /tmp/webreel-review/<video-name>/frame_%03d.png
 ```
 
-Read every frame with the `Read` tool. For each one, answer three questions:
+Read every frame. For each one, answer five questions:
 
-1. **What is the camera framing?** (a target element or wide view — not random empty space, not a zoomed crop of blank canvas)
-2. **Is the cursor on-target?** (not teleported, not off-screen unless the beat legitimately shows a "nothing happens here" moment — e.g. the protected-node right-click beat that's *supposed* to render no menu)
-3. **If a caption is visible, does the frame back it up?** (the caption's claim must be evidenced by the frame, per the caption-state matching rule in Phase 5)
+1. **What is the camera framing?** A target element or intentional wide view — not random empty space, not a zoomed crop of blank canvas.
+2. **Is the cursor on-target?** Not teleported, not off-screen, not moving so far between adjacent frames that the viewer loses it.
+3. **If a caption is visible, does the frame back it up?** The caption's claim must be evidenced by the frame, per the caption-state matching rule in Phase 5.
+4. **Does the next frame continue the same act?** Related steps should feel connected, not like separate test assertions stitched together.
+5. **Is type/state evidence still visible?** Disabled state, item type, selected paste variant, copied node name, and modal/content proof must remain readable in the actual frames, not only in the script.
 
-If **any** frame fails **any** check, fix the config and re-record. Do not ship a video on the premise that the bad frames "are brief" — viewers skim, and one 500 ms stretch of dead screen time is what they remember.
+Failure thresholds:
 
-#### 3. If a user reports a visual issue, audit before patching
+- Any blank-canvas crop with no meaningful UI for >500 ms fails.
+- Any static cursor hold >1 s outside a readable caption dwell fails.
+- Any caption covering the evidence it names fails.
+- Any camera release/re-acquire pulse inside one logical action fails.
+- Any repeated menu open/close that does not prove a before/after state fails.
+- Any simple PR video >25 s requires an explicit reason; otherwise cut and re-record.
 
-When the user says "the video has a problem at t=X", the response is NOT to guess at a cause and ship a speculative fix. The response is:
+If any frame fails any check, fix the config and re-record. Do not ship on the premise that the bad frames are brief.
 
-1. Pull the existing record's event log (re-record with `--verbose | tee` if the log isn't on disk).
-2. Find the autozoom event whose timestamp is closest to the reported timestamp.
-3. Check that event's bbox against the three failure patterns in step 1 above.
-4. Only then propose and apply a fix — and re-run **both** step 1 and step 2 before declaring the new video shipped.
+#### 3. Reference-benchmark comparison when polish is questioned
 
-Every time I've skipped this protocol and gone "oh, it's probably X, removing X" based on the config alone, the user has come back and said "still happens". The 2-minute event-log audit catches what guessing can't.
+If the user provides a reference clip, download it and audit it beside the current output before changing config. For X/Twitter references, try `api.vxtwitter.com` or `api.fxtwitter.com` to get the direct `video.twimg.com` MP4 when the normal page blocks unauthenticated media.
+
+Generate matching 1 fps and 2 fps sheets for both clips:
+
+```bash
+~/.webreel/bin/ffmpeg/ffmpeg -y -v error -i <candidate>.mp4 \
+  -vf "fps=2,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='%{pts\\:hms}':x=10:y=10:fontsize=18:fontcolor=red:box=1:boxcolor=white@0.8,scale=260:-1,tile=10x7:padding=6:margin=6:color=white" \
+  /tmp/candidate-2fps-sheet.jpg
+~/.webreel/bin/ffmpeg/ffmpeg -y -v error -i <reference>.mp4 \
+  -vf "fps=2,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='%{pts\\:hms}':x=10:y=10:fontsize=18:fontcolor=red:box=1:boxcolor=white@0.8,scale=260:-1,tile=10x7:padding=6:margin=6:color=white" \
+  /tmp/reference-2fps-sheet.jpg
+```
+
+Write a short delta before patching: duration, first-action time, caption count, dead-frame count, repeated-menu count, camera-pulse count, and whether every frame has a clear focal point. Then change the config to close those specific gaps.
+
+#### 4. If a user reports a visual issue, audit before patching
+
+When the user says "the video has a problem at t=X", do not guess and ship a speculative fix. Pull the event log, find the autozoom event closest to the reported timestamp, check its bbox, inspect the 2 fps frames around that timestamp, and only then patch. Re-run steps 1–3 before declaring the new video ready.
 
 ### Phase 9 — Deliver
 
@@ -658,4 +704,3 @@ Before recording, run the pre-flight scripts (below) — they catch the most com
 - [scripts/extend-timeline.py](scripts/extend-timeline.py) — stretch caption HUD dwell to ≥3000 ms before re-compositing
 - [scripts/validate-caption-dwell.py](scripts/validate-caption-dwell.py) — check caption dwell budget against word-count rules
 - [scripts/upload-to-pr.sh](scripts/upload-to-pr.sh) — end-to-end upload via `gh image` + prepend embed to PR body (preserves existing content, idempotent guard against duplicates)
-
